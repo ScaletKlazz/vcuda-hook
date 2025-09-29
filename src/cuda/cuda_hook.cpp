@@ -3,17 +3,10 @@
 #include <iostream>
 
 #include "spdlog/spdlog.h"
-#include "spdlog/sinks/daily_file_sink.h"
-#include "spdlog/sinks/stdout_color_sinks.h"
 
 #include "cuda/cuda_hook.hpp"
 
 extern void* real_dlsym(void* handle, const char* symbol);
-
-CudaHook& CudaHook::getInstance() {
-   static auto instance = CudaHook{};
-   return instance;
-}
 
 CUresult cuGetProcAddress(const char* symbol, void** pfn, int cudaVersion, cuuint64_t flags, CUdriverProcAddressQueryResult* symbolStatus) {
     CUresult result = CUDA_SUCCESS;
@@ -21,7 +14,7 @@ CUresult cuGetProcAddress(const char* symbol, void** pfn, int cudaVersion, cuuin
     if (!hook.ori_cuGetProcAddress) {
         void* handle = dlopen(CUDA_LIBRARY_SO, RTLD_LAZY);
         if (!handle) {
-            SPDLOG_LOGGER_ERROR(spdlog::get("cuda_logger"), "dlopen failed: {}", dlerror());
+            spdlog::error("dlopen failed: {}", dlerror());
             return CUDA_ERROR_NOT_INITIALIZED;
         }
 
@@ -30,7 +23,7 @@ CUresult cuGetProcAddress(const char* symbol, void** pfn, int cudaVersion, cuuin
        
         dlclose(handle);
         if (!hook.ori_cuGetProcAddress) {
-            SPDLOG_LOGGER_ERROR(spdlog::get("cuda_logger"), "real_dlsym failed to get cuGetProcAddress");
+            spdlog::error("real_dlsym failed to get cuGetProcAddress");
             return CUDA_ERROR_NOT_INITIALIZED;
         }
     }
@@ -47,8 +40,8 @@ CUresult cuGetProcAddress(const char* symbol, void** pfn, int cudaVersion, cuuin
             return result;
         }
         
-        if (hookInfo.assignOriginal) {
-            hookInfo.assignOriginal(hook, *pfn);
+        if (hookInfo.original) {
+            hookInfo.original(hook, *pfn);
         }
         
         if (hookInfo.hookedFunc != NO_HOOK) {
@@ -66,7 +59,7 @@ CUresult cuGetProcAddress(const char* symbol, void** pfn, int cudaVersion, cuuin
 }
 
 CUresult cuInit(unsigned int Flags) {
-    SPDLOG_LOGGER_DEBUG(spdlog::get("cuda_logger"), "cuInit request Flags {}", Flags);
+    spdlog::debug("cuInit request Flags {}", Flags);
     CudaHook& hook = CudaHook::getInstance();
 
     if (!hook.ori_cuInit) {
@@ -78,9 +71,9 @@ CUresult cuInit(unsigned int Flags) {
         dlclose(handle);
 
         if (hook.ori_cuInit) {
-            SPDLOG_LOGGER_DEBUG(spdlog::get("cuda_logger"), "get original cuInit success");
+            spdlog::debug("get original cuInit success");
         } else {
-            SPDLOG_LOGGER_ERROR(spdlog::get("cuda_logger"), "get original cuInit failed");
+            spdlog::error("get original cuInit failed");
             return CUDA_ERROR_NOT_INITIALIZED;
         }
     }
@@ -105,9 +98,9 @@ CUresult cuMemAlloc(CUdeviceptr* dptr, size_t byteSize) {
         dlclose(handle);
 
         if (hook.ori_cuMemAlloc) {
-            SPDLOG_LOGGER_DEBUG(spdlog::get("cuda_logger"), "get original ori_cuMemAlloc success");
+            spdlog::debug("get original ori_cuMemAlloc success");
         } else {
-            SPDLOG_LOGGER_ERROR(spdlog::get("cuda_logger"), "get original ori_cuMemAlloc failed");
+            spdlog::error("get original ori_cuMemAlloc failed");
             return CUDA_ERROR_NOT_INITIALIZED;
         }
     }
@@ -127,9 +120,9 @@ CUresult cuMemAlloc(CUdeviceptr* dptr, size_t byteSize) {
         dlclose(handle);
 
         if (hook.ori_cuPointerGetAttribute) {
-            SPDLOG_LOGGER_DEBUG(spdlog::get("cuda_logger"), "get original ori_cuPointerGetAttribute success");
+            spdlog::debug("get original ori_cuPointerGetAttribute success");
         } else {
-            SPDLOG_LOGGER_ERROR(spdlog::get("cuda_logger"), "get original ori_cuPointerGetAttribute failed");
+            spdlog::error("get original ori_cuPointerGetAttribute failed");
             return CUDA_ERROR_NOT_INITIALIZED;
         }
     }
@@ -151,9 +144,9 @@ CUresult cuDeviceGet(CUdevice* device, int ordinal) {
         dlclose(handle);
 
         if (hook.ori_cuDeviceGet) {
-            SPDLOG_LOGGER_DEBUG(spdlog::get("cuda_logger"), "get original cuDeviceGet success");
+            spdlog::debug("get original cuDeviceGet success");
         } else {
-            SPDLOG_LOGGER_ERROR(spdlog::get("cuda_logger"), "get original cuDeviceGet failed");
+            spdlog::error("get original cuDeviceGet failed");
             return CUDA_ERROR_NOT_INITIALIZED;
         }
     }
@@ -173,9 +166,9 @@ CUresult cuMemFree(CUdeviceptr dptr) {
         dlclose(handle);
 
         if (hook.ori_cuMemFree) {
-            SPDLOG_LOGGER_DEBUG(spdlog::get("cuda_logger"), "get original cuMemFree success");
+            spdlog::debug("get original cuMemFree success");
         } else {
-            SPDLOG_LOGGER_ERROR(spdlog::get("cuda_logger"), "get original cuMemFree failed");
+            spdlog::error("get original cuMemFree failed");
             return CUDA_ERROR_NOT_INITIALIZED;
         }
     }
@@ -202,9 +195,9 @@ CUresult cuMemGetInfo(size_t* free, size_t* total) {
         dlclose(handle);
 
         if (hook.ori_cuMemGetInfo) {
-            SPDLOG_LOGGER_DEBUG(spdlog::get("cuda_logger"), "get original cuMemGetInfo success");
+            spdlog::debug("get original cuMemGetInfo success");
         } else {
-            SPDLOG_LOGGER_ERROR(spdlog::get("cuda_logger"), "get original cuMemGetInfo failed");
+            spdlog::error("get original cuMemGetInfo failed");
             return CUDA_ERROR_NOT_INITIALIZED;
         }
     }
@@ -214,7 +207,7 @@ CUresult cuMemGetInfo(size_t* free, size_t* total) {
 
     int device_id;
     hook.ori_cuCtxGetDevice(&device_id);
-    SPDLOG_LOGGER_DEBUG(spdlog::get("cuda_logger"), "Device {} free: {} total: {}", device_id, *free, *total);
+    spdlog::debug("Device {} free: {} total: {}", device_id, *free, *total);
 
 	// TODO: use client to get memory usage
     return result;
