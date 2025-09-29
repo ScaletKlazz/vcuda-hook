@@ -18,7 +18,7 @@ endif()
 include(FetchContent)
 FetchContent_Declare(
     spdlog
-    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_REPOSITORY https://githubfast.com/gabime/spdlog.git
     GIT_SHALLOW TRUE
     GIT_TAG        v1.x
 )
@@ -31,12 +31,18 @@ include_directories(${spdlog_SOURCE_DIR}/include)
 add_compile_definitions(SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE)
 
 ## add source files
-file(GLOB CUDA_SOURCES "src/cuda/*.cpp")
-file(GLOB NVML_SOURCES "src/nvml/*.cpp")
-file(GLOB CLIENT_SOURCES "src/client/*.cpp")
+file(GLOB HOOK_SOURCES
+        "src/cuda/*.cpp"
+        "src/nvml/*.cpp"
+        "src/hook/*.cpp"
+)
+file(GLOB CLIENT_SOURCES 
+        "src/client/*.cpp"
+        "src/device/*.cpp"
+)
 file(GLOB UTIL_SOURCES "src/util/*.cpp")
 
-add_library(vcuda-hook SHARED ${CUDA_SOURCES} ${NVML_SOURCES})
+add_library(vcuda-hook SHARED ${HOOK_SOURCES})
 add_library(client_lib ${CLIENT_SOURCES})
 add_library(util_lib ${UTIL_SOURCES})
 
