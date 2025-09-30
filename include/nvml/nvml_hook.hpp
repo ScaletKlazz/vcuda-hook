@@ -6,10 +6,7 @@
 #include "device/device.hpp"
 #include "client/client.hpp"
 
-
-
 #define NVML_LIBRARY_SO "libnvidia-ml.so"
-#define DEBUG true
 
 #define ADD_NVML_SYMBOL(symbol, hook_ptr) \
     {#symbol, { \
@@ -45,6 +42,7 @@ public:
     }
 
 private:
+    friend class BaseHook<NvmlHook>;
     NvmlHook() = default;
     NvmlHook(const NvmlHook&) = delete;
     NvmlHook& operator=(const NvmlHook&) = delete; 

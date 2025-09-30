@@ -2,9 +2,9 @@
 #define CUDA_HOOK_DEFINE
 
 #include <cuda.h>
-
 #include "hook/hook.hpp"
-#include "util/util.hpp"
+#include "device/device.hpp"
+#include "client/client.hpp"
 
 #define CUDA_LIBRARY_SO "libcuda.so"
 
@@ -58,6 +58,7 @@ public:
     }
 
 private:
+    friend class BaseHook<CudaHook>;
     CudaHook() = default;
     CudaHook(const CudaHook&) = delete;
     CudaHook& operator=(const CudaHook&) = delete;

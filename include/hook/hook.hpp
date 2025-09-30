@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <functional>
 
-static void* real_dlsym(void* handle, const char* symbol);
+void* real_dlsym(void*, const char*);
 
 extern "C" {
     __attribute__((visibility("default"))) void* dlsym(void* handle, const char* symbol);
