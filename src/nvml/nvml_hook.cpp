@@ -3,8 +3,17 @@
 #include <iostream>
 
 #include "spdlog/spdlog.h"
-
+#include "util/logger.hpp"
 #include "nvml/nvml_hook.hpp"
 
 extern void* real_dlsym(void* handle, const char* symbol);
 
+namespace {
+struct LoggerInitializer {
+    LoggerInitializer() {
+        util::Logger::init();
+    }
+};
+
+LoggerInitializer g_logger_initializer;
+} // namespace

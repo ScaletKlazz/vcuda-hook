@@ -4,3 +4,8 @@ build/
 **/__pycache__/**
 tests/output/
 utils/*.txt
+
+
+*.o
+*.so
+*.a

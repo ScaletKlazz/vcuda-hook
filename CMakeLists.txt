@@ -15,20 +15,20 @@ else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 endif()
 
-include(FetchContent)
-FetchContent_Declare(
-    spdlog
-    GIT_REPOSITORY https://githubfast.com/gabime/spdlog.git
-    GIT_SHALLOW TRUE
-    GIT_TAG        v1.x
-)
-set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "Build shared library" FORCE)
-FetchContent_MakeAvailable(spdlog)
+set(SPDLOG_ROOT ${CMAKE_SOURCE_DIR}/third_party/spdlog)
+if(EXISTS ${SPDLOG_ROOT}/CMakeLists.txt)
+    set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "Build shared library" FORCE)
+    set(SPDLOG_FMT_EXTERNAL OFF CACHE BOOL "Use external fmt library" FORCE)
 
-message(${spdlog_SOURCE_DIR}/include)
-include_directories(${spdlog_SOURCE_DIR}/include)
+    add_subdirectory(${SPDLOG_ROOT} ${CMAKE_BINARY_DIR}/spdlog)
+    include_directories(${SPDLOG_ROOT}/include)
+    message(STATUS "Using spdlog from submodule: ${SPDLOG_ROOT}")
+else()
+    message(FATAL_ERROR "spdlog submodule not found or missing CMakeLists.txt. Please run: git submodule update --init --recursive")
+endif()
 
 add_compile_definitions(SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE)
+
 
 ## add source files
 file(GLOB HOOK_SOURCES

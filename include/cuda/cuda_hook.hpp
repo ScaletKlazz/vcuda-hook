@@ -57,11 +57,16 @@ public:
         return map;
     }
 
+    const char* GetSymbolPrefix() const override {
+        return symbolPrefixStr;
+    }
 private:
     friend class BaseHook<CudaHook>;
     CudaHook() = default;
     CudaHook(const CudaHook&) = delete;
     CudaHook& operator=(const CudaHook&) = delete;
+protected:
+    const char* symbolPrefixStr = "cu";    
 };
 
 

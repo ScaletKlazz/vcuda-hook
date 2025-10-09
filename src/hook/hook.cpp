@@ -2,14 +2,27 @@
 #include <cstring>
 
 #include "spdlog/spdlog.h"
+#include "util/logger.hpp"
 #include "util/util.hpp"
 #include "cuda/cuda_hook.hpp"
 #include "nvml/nvml_hook.hpp"
 #include "hook/hook.hpp"
 
+namespace {
+struct LoggerInitializer {
+    LoggerInitializer() {
+        util::Logger::init();
+    }
+};
+
+LoggerInitializer g_logger_initializer;
+} // namespace
+
 void* real_dlsym(void* handle, const char* symbol) {
     using dlsym_t = void* (*)(void*, const char*);
     static dlsym_t r_dlsym = nullptr;
+
+    util::Logger::init();
 
     if (!r_dlsym) {
         dlerror();
@@ -38,7 +51,13 @@ namespace {
             hookInfo.original(hook, original_sym);
         }
 
+        spdlog::info("Hook {}", symbol);
         return hookInfo.hookedFunc;
+    }
+
+    template <typename HookT>
+    bool matchSymbol(HookT& hook,const char* symbol) {
+        return strncmp(symbol, hook.GetSymbolPrefix(), strlen(hook.GetSymbolPrefix())) == 0;
     }
 } 
 
@@ -50,22 +69,13 @@ __attribute__((visibility("default"))) void* dlsym(void* handle, const char* sym
     }
     
     auto sym = real_dlsym(handle, symbol);
-    spdlog::info("dlsym {} {}", symbol, sym);
-    
-    auto isCuda = strncmp(symbol, "cu", 2) == 0;
-    auto isNvml = strncmp(symbol, "nvml", 4) == 0;
+    spdlog::debug("dlsym {} {}", symbol, sym);
 
-    if (!isCuda && !isNvml) {
-        return sym;
-    }
-
-    if (isCuda){
-        auto& hook = CudaHook::getInstance();
+    if (auto& hook = CudaHook::getInstance();matchSymbol(hook, symbol)){
         return tryHookSymbol(hook, symbol, sym);
     }
 
-    if (isNvml) {
-        NvmlHook& hook = NvmlHook::getInstance();
+    if (auto& hook = NvmlHook::getInstance();matchSymbol(hook, symbol)) {
         return tryHookSymbol(hook, symbol, sym);
     }
 

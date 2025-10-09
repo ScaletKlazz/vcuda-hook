@@ -27,17 +27,20 @@ public:
 
     static HookFuncInfo getHookedSymbol(const std::string& symbolName) {
         const auto& map = Derived::getHookMap();
-        auto it = map.find(symbolName);
-        if (it != map.end()) {
+        if (auto it = map.find(symbolName);it != map.end()) {
             return it->second;
         }
         return { nullptr, nullptr };
     }
 
+    virtual const char* GetSymbolPrefix() const = 0;
 protected:
     BaseHook() = default;
     BaseHook(const BaseHook&) = delete;
     BaseHook& operator=(const BaseHook&) = delete;
+
+    // class var member
+    char* symbolPrefixStr = nullptr;
 };
 
 #endif

@@ -41,11 +41,16 @@ public:
         return map;
     }
 
+    const char* GetSymbolPrefix() const override {
+        return symbolPrefixStr;
+    }
 private:
     friend class BaseHook<NvmlHook>;
     NvmlHook() = default;
     NvmlHook(const NvmlHook&) = delete;
     NvmlHook& operator=(const NvmlHook&) = delete; 
+protected:
+    const char* symbolPrefixStr = "nvml";   
 };
 
 #endif

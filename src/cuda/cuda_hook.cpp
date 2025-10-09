@@ -3,12 +3,21 @@
 #include <iostream>
 
 #include "spdlog/spdlog.h"
+#include "util/logger.hpp"
 #include "util/util.hpp"
 #include "cuda/cuda_hook.hpp"
 
 extern void* real_dlsym(void*, const char*);
 
 namespace {
+    struct LoggerInitializer {
+        LoggerInitializer() {
+            util::Logger::init();
+        }
+    };
+
+    LoggerInitializer g_logger_initializer;
+
     template <typename FnPtr>
     bool ensureCudaSymbol(FnPtr& fn, const char* symbol_name) {
         if (fn) {
