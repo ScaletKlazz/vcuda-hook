@@ -33,7 +33,7 @@ jobs:
         
     - name: Configure CMake
       # Configure CMake with Unix Makefiles generator
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -G "Unix Makefiles"
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCUDAToolkit_INCLUDE_DIR=/usr/local/cuda/include/ -G "Unix Makefiles"
 
     - name: Build with Make
       # Build the project using make command directly

@@ -6,8 +6,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 find_package(CUDAToolkit REQUIRED)
-message(STATUS "Using CUDA Toolkit: ${CUDAToolkit_ROOT}")
-include_directories(${CUDAToolkit_ROOT}/)
+message(STATUS "Using CUDA Toolkit: ${CUDAToolkit_INCLUDE_DIR}")
+include_directories(${CUDAToolkit_INCLUDE_DIR})
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
