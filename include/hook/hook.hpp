@@ -4,6 +4,9 @@
 #include <unordered_map>
 #include <functional>
 
+#include "device/device.hpp"
+
+
 void* real_dlsym(void*, const char*);
 
 extern "C" {
@@ -11,6 +14,7 @@ extern "C" {
 }
 
 #define NO_HOOK reinterpret_cast<void*>(static_cast<intptr_t>(-1))
+#define HOOK_SYMBOL(x) reinterpret_cast<void*>(x)
 
 template<typename Derived>
 class BaseHook {
@@ -33,6 +37,8 @@ public:
         return { nullptr, nullptr };
     }
 
+    Device& getDevice() { return device_; }
+
     virtual const char* GetSymbolPrefix() const = 0;
 protected:
     BaseHook() = default;
@@ -40,6 +46,7 @@ protected:
     BaseHook& operator=(const BaseHook&) = delete;
 
     // class var member
+    Device device_;
     char* symbolPrefixStr = nullptr;
 };
 

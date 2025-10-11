@@ -1,7 +1,7 @@
 #include "device/device.hpp"
 #include "spdlog/spdlog.h"
 #include "util/logger.hpp"
-#include "util/config.hpp"
+// #include "util/config.hpp"
 
 namespace {
     struct LoggerInitializer {
@@ -16,13 +16,22 @@ namespace {
 // Device constructor
 Device::Device()
 { 
-    if (auto limit = util::Config::memoryLimitBytes()) {
-        device_memory_limit_bytes_ = *limit;
-    }
+    // if (auto limit = util::Config::memoryLimitBytes()) {
+    //     device_memory_limit_bytes_ = *limit;
+    // }
 
-    if (auto deviceName = util::Config::targetDeviceName()) {
-        device_name_ = *deviceName;
-    }
+    // if (auto deviceName = util::Config::targetDeviceName()) {
+    //     device_name_ = *deviceName;
+    // }
+}
+
+void Device::setDeviceId(int device_id) {
+    spdlog::info("Set device id to {}", device_id);
+    device_id_ = device_id;
+}
+
+int Device::getDeviceId() {
+    return device_id_;
 }
 
 
@@ -57,9 +66,13 @@ void Device::recordFree(CUdeviceptr ptr, int device_id) {
     return;
 }
 
-// get device usage
-size_t Device::getDeviceUsage(int device_id) const {
+// get device memory usage
+size_t Device::getDeviceMemoryUsage(int device_id) const {
     std::lock_guard<std::mutex> lock(mutex_);
+
+    if (likely(device_id == DEVICE_INDEX_CURRENT)){
+        device_id = device_id_;
+    }
 
     if (device_id < device_usage_.size()) {
         return device_usage_[device_id];
@@ -68,8 +81,17 @@ size_t Device::getDeviceUsage(int device_id) const {
     return 0;
 }
 
+size_t Device::getDeviceMemoryLimit(int device_id) const {
+    return device_memory_limit_bytes_;
+}
+
+
 // update memory usage
-void Device::updateMemoryUsage(const int device_id, const enum MemOperation operation, CUdeviceptr ptr, size_t size) {
+void Device::updateMemoryUsage(const enum MemOperation operation, CUdeviceptr ptr, size_t size, int device_id) {
+    if (likely(device_id == DEVICE_INDEX_CURRENT)){
+        device_id = device_id_;
+    }
+
     if (operation == MemAlloc) {
         return recordAllocation(ptr, size, device_id);
     } else {

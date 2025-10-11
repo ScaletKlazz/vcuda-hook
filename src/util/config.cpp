@@ -1,10 +1,6 @@
 #include "util/config.hpp"
 
-#include <algorithm>
-#include <cctype>
-#include <charconv>
-#include <cstdlib>
-#include <limits>
+#include <climits>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -24,65 +20,91 @@ struct FileConfig {
 };
 
 std::string trim(const std::string& input) {
-    const auto first = input.find_first_not_of(" \t\n\r");
-    if (first == std::string::npos) {
+    if (input.empty()) {
         return {};
     }
 
-    const auto last = input.find_last_not_of(" \t\n\r");
+    size_t first = 0;
+    while (first < input.size() && 
+           (input[first] == ' ' || input[first] == '\t' || 
+            input[first] == '\n' || input[first] == '\r')) {
+        ++first;
+    }
+
+    if (first == input.size()) {
+        return {};
+    }
+
+    size_t last = input.size() - 1;
+    while (last > first && 
+           (input[last] == ' ' || input[last] == '\t' || 
+            input[last] == '\n' || input[last] == '\r')) {
+        --last;
+    }
+
     return input.substr(first, last - first + 1);
 }
 
-std::string toLowerCopy(std::string value) {
-    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
-        return static_cast<char>(std::tolower(ch));
-    });
-    return value;
-}
-
-std::optional<std::size_t> parseUnsigned(const std::string& text) {
+std::size_t parseUnsigned(const std::string& text) {
     const auto cleaned = trim(text);
     if (cleaned.empty()) {
-        return std::nullopt;
+        return 0;
     }
 
+    const char* str = cleaned.c_str();
     unsigned long long number = 0;
-    const char* begin = cleaned.data();
-    const char* end = begin + cleaned.size();
+    int i = 0;
+    
+    while (str[i] >= '0' && str[i] <= '9') {
+        if (number > (ULLONG_MAX - (str[i] - '0')) / 10) {
+            return 0;
+        }
+        number = number * 10 + (str[i] - '0');
+        i++;
+    }
 
-    auto result = std::from_chars(begin, end, number);
-    if (result.ec != std::errc{} || result.ptr != end) {
-        return std::nullopt;
+    if (str[i] != '\0') {
+        return 0;
     }
 
     if (number > std::numeric_limits<std::size_t>::max()) {
-        return std::nullopt;
+        return 0;
     }
 
     return static_cast<std::size_t>(number);
 }
 
-std::optional<std::size_t> multiplyWithOverflowCheck(std::size_t value, std::size_t multiplier) {
+std::string toLowerCopy(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+        if (ch >= 'A' && ch <= 'Z') {
+            return static_cast<char>(ch + ('a' - 'A'));
+        }
+        return static_cast<char>(ch);
+    });
+    return value;
+}
+
+std::size_t multiplyWithOverflowCheck(std::size_t value, std::size_t multiplier) {
     if (value == 0 || multiplier == 0) {
         return static_cast<std::size_t>(0);
     }
 
     if (value > std::numeric_limits<std::size_t>::max() / multiplier) {
-        return std::nullopt;
+        return 0;
     }
 
     return value * multiplier;
 }
-std::optional<std::size_t> parseByteSizeInternal(const std::string& value) {
+std::size_t parseByteSizeInternal(const std::string& value) {
     auto trimmed = trim(value);
     if (trimmed.empty()) {
-        return std::nullopt;
+        return 0;
     }
 
     std::size_t suffixPos = trimmed.size();
     while (suffixPos > 0) {
         const unsigned char ch = static_cast<unsigned char>(trimmed[suffixPos - 1]);
-        if (std::isalpha(ch)) {
+         if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')) {
             --suffixPos;
         } else {
             break;
@@ -108,27 +130,27 @@ std::optional<std::size_t> parseByteSizeInternal(const std::string& value) {
     } else if (suffix == "t" || suffix == "tb" || suffix == "ti") {
         multiplier = 1024ull * 1024ull * 1024ull * 1024ull;
     } else {
-        return std::nullopt;
+        return 0;
     }
 
     auto baseValue = parseUnsigned(numberPart);
     if (!baseValue) {
-        return std::nullopt;
+        return 0;
     }
 
-    return multiplyWithOverflowCheck(*baseValue, multiplier);
+    return multiplyWithOverflowCheck(baseValue, multiplier);
 }
 
-std::optional<FileConfig> loadConfigFile() {
+FileConfig loadConfigFile() {
+    FileConfig config;
+
     try {
         YAML::Node root = YAML::LoadFile(kConfigFilePath);
         if (!root || !root.IsMap()) {
-            return std::nullopt;
+            return config;
         }
 
-        FileConfig config;
-
-        const auto loadMemory = [&](const YAML::Node& node) {
+            const auto loadMemory = [&](const YAML::Node& node) {
             if (!node) {
                 return;
             }
@@ -172,15 +194,15 @@ std::optional<FileConfig> loadConfigFile() {
             return config;
         }
     } catch (const YAML::Exception&) {
-        return std::nullopt;
+        return config;
     }
 
-    return std::nullopt;
+    return config;
 }
 
-const std::optional<FileConfig>& cachedFileConfig() {
+FileConfig& cachedFileConfig() {
     static std::once_flag flag;
-    static std::optional<FileConfig> cache;
+    static FileConfig cache;
     std::call_once(flag, [] {
         cache = loadConfigFile();
     });
@@ -189,40 +211,40 @@ const std::optional<FileConfig>& cachedFileConfig() {
 
 } // namespace
 
-std::optional<std::size_t> Config::memoryLimitBytes() {
-    if (const auto& fileCfg = cachedFileConfig(); fileCfg && fileCfg->memory_limit) {
-        return fileCfg->memory_limit;
+std::size_t Config::memoryLimitBytes() {
+    if (const auto& fileCfg = cachedFileConfig(); fileCfg.memory_limit) {
+        return fileCfg.memory_limit.value();
     }
 
     auto raw = getEnv(kMemoryLimitEnv);
-    if (!raw) {
-        return std::nullopt;
+    if (size(raw) == 0) {
+        return 0;
     }
 
-    return parseByteSize(*raw);
+    return parseByteSize(raw);
 }
 
-std::optional<std::string> Config::targetDeviceName() {
-    if (const auto& fileCfg = cachedFileConfig(); fileCfg && fileCfg->device_name) {
-        return fileCfg->device_name;
+std::string Config::targetDeviceName() {
+    if (const auto& fileCfg = cachedFileConfig(); fileCfg.device_name) {
+        return fileCfg.device_name.value();
     }
 
     return getEnv(kDeviceNameEnv);
 }
 
-std::optional<std::string> Config::getEnv(const char* name) {
+std::string Config::getEnv(const char* name) {
     if (!name) {
-        return std::nullopt;
+        return "";
     }
 
     if (const char* value = std::getenv(name); value && *value) {
         return std::string(value);
     }
 
-    return std::nullopt;
+    return "";
 }
 
-std::optional<std::size_t> Config::parseByteSize(const std::string& value) {
+std::size_t Config::parseByteSize(const std::string& value) {
     return parseByteSizeInternal(value);
 }
 

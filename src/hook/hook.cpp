@@ -51,7 +51,7 @@ namespace {
             hookInfo.original(hook, original_sym);
         }
 
-        spdlog::info("Hook {}", symbol);
+        spdlog::debug("Hook {}", symbol);
         return hookInfo.hookedFunc;
     }
 
@@ -69,7 +69,7 @@ __attribute__((visibility("default"))) void* dlsym(void* handle, const char* sym
     }
     
     auto sym = real_dlsym(handle, symbol);
-    spdlog::debug("dlsym {} {}", symbol, sym);
+    spdlog::trace("Dlsym {} {}", symbol, sym);
 
     if (auto& hook = CudaHook::getInstance();matchSymbol(hook, symbol)){
         return tryHookSymbol(hook, symbol, sym);

@@ -35,24 +35,27 @@ public:
     ORI_CUDA_FUNC(cuGetProcAddress, CUresult, const char*, void**, int, cuuint64_t, CUdriverProcAddressQueryResult*);
     ORI_CUDA_FUNC(cuMemAlloc, CUresult, CUdeviceptr*, size_t);
     ORI_CUDA_FUNC(cuDeviceGet, CUresult, CUdevice*, int);
+    ORI_CUDA_FUNC(cuMemAllocHost, CUresult, void**, size_t);
     ORI_CUDA_FUNC(cuInit, CUresult, unsigned int);
     ORI_CUDA_FUNC(cuGetErrorString, CUresult, CUresult, const char**);
     ORI_CUDA_FUNC(cuMemFree, CUresult, CUdeviceptr);
     ORI_CUDA_FUNC(cuCtxGetDevice, CUresult, CUdevice*);
+    ORI_CUDA_FUNC(cuCtxSetCurrent, CUresult, CUcontext);
     ORI_CUDA_FUNC(cuPointerGetAttribute, CUresult, void*, CUpointer_attribute, CUdeviceptr);
     ORI_CUDA_FUNC(cuMemGetInfo, CUresult, size_t*, size_t*);
 
     static const std::unordered_map<std::string, HookFuncInfo>& getHookMap() {
         static const std::unordered_map<std::string, HookFuncInfo> map = {
-            ADD_CUDA_SYMBOL(cuGetProcAddress, reinterpret_cast<void*>(&cuGetProcAddress)),
-            ADD_CUDA_SYMBOL(cuMemAlloc, reinterpret_cast<void*>(&cuMemAlloc)),
-            ADD_CUDA_SYMBOL(cuDeviceGet, reinterpret_cast<void*>(&cuDeviceGet)),
-            ADD_CUDA_SYMBOL(cuInit, reinterpret_cast<void*>(&cuInit)),
+            ADD_CUDA_SYMBOL(cuGetProcAddress, HOOK_SYMBOL(&cuGetProcAddress)),
+            ADD_CUDA_SYMBOL(cuMemAlloc, HOOK_SYMBOL(&cuMemAlloc)),
+            ADD_CUDA_SYMBOL(cuDeviceGet, HOOK_SYMBOL(&cuDeviceGet)),
+            ADD_CUDA_SYMBOL(cuInit, HOOK_SYMBOL(&cuInit)),
             ADD_CUDA_SYMBOL(cuGetErrorString, NO_HOOK),
-            ADD_CUDA_SYMBOL(cuMemFree, reinterpret_cast<void*>(&cuMemFree)),
-            ADD_CUDA_SYMBOL(cuCtxGetDevice, NO_HOOK),
+            ADD_CUDA_SYMBOL(cuMemFree, HOOK_SYMBOL(&cuMemFree)),
+            ADD_CUDA_SYMBOL(cuCtxGetDevice, HOOK_SYMBOL(&cuCtxGetDevice)),
+            ADD_CUDA_SYMBOL(cuCtxSetCurrent, HOOK_SYMBOL(&cuCtxSetCurrent)),
             ADD_CUDA_SYMBOL(cuPointerGetAttribute, NO_HOOK),
-            ADD_CUDA_SYMBOL(cuMemGetInfo, reinterpret_cast<void*>(&cuMemGetInfo)),
+            ADD_CUDA_SYMBOL(cuMemGetInfo, HOOK_SYMBOL(&cuMemGetInfo)),
         };
         return map;
     }

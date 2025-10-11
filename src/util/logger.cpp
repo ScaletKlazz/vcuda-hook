@@ -1,8 +1,5 @@
 #include "util/logger.hpp"
 
-#include <algorithm>
-#include <cctype>
-#include <cstdlib>
 #include <mutex>
 #include <string>
 
@@ -19,12 +16,14 @@ constexpr const char* kFileEnvVar = "VCUDA_LOG_FILE";
 constexpr const char* kLoggerName = "vcuda-hook";
 constexpr const char* kPattern = "[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] [%t] %v";
 
-std::string toLowerCopy(const std::string& value) {
-    std::string lowered = value;
-    std::transform(lowered.begin(), lowered.end(), lowered.begin(), [](unsigned char ch) {
-        return static_cast<char>(std::tolower(ch));
+std::string toLowerCopy(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+        if (ch >= 'A' && ch <= 'Z') {
+            return static_cast<char>(ch + ('a' - 'A'));
+        }
+        return static_cast<char>(ch);
     });
-    return lowered;
+    return value;
 }
 
 } // namespace

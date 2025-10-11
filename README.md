@@ -3,13 +3,40 @@
 a transparent-level library overhook lib-cuda and lib-nvidia-ml
 
 # HomePage
-[CFN-Cloud](https://wwwq.cfncloud.com)  
+[CFN-Cloud](https://www.cfncloud.com)(In development...)
+
+# Build Dependencies
+- [CMake](https://cmake.org) >= 3.19
+- [Docker](https://www.docker.com)]
+- [CUDA](https://developer.nvidia.com/cuda-zone) >= 12.6
+- [Yaml-cpp](https://github.com/jbeder/yaml-cpp) > 0.7
+- [Spdlog](https://github.com/gabime/spdlog) > 1.x
+
+# How to Use
+## build library
+1. build builder image
+```
+bash ./hack/build-builder.sh
+```
+2. build library
+```
+bash ./hack/build-via-docker.sh
+```
+## run application
+```
+# manual
+LD_PRELOAD=/path/to/libvcuda-hook.so your_application
+
+# or use docker
+docker run -it --gpus all --rm -v /path/to/libvcuda-hook.so:/usr/lib64/libvcuda-hook.so -e LD_PRELOAD=/usr/lib64/libvcuda-hook.so your_image
+```
 
 # Features
 
 ## GPU Virtualization Features
-- [ ] Fractional GPU
-- [ ] Memory Control 
+- [ √ ] Fractional GPU
+- [ √ ] Memory Control
+- [ ] Multi-Process Unified Control
 - [ ] Container GPU Sharing
 - ...
 

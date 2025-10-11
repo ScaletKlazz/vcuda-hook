@@ -141,7 +141,7 @@ CUresult cuMemAlloc(CUdeviceptr* dptr, size_t byteSize) {
         return result;
     }
 
-    // TODO: use client to update memory usage (device_id, allocation size)
+    hook.getDevice().updateMemoryUsage(MemAlloc,*dptr,byteSize);
 
     return result;
 }
@@ -174,18 +174,66 @@ CUresult cuMemFree(CUdeviceptr dptr) {
     } else {
         spdlog::warn("Unable to resolve cuPointerGetAttribute - skipping device attribution for free");
     }
-    // TODO: use client to update memory usage (device_id, freed size)
 
     const CUresult result = hook.ori_cuMemFree(dptr);
     if (result != CUDA_SUCCESS) {
         logCudaError(hook, "cuMemFree failed", result);
     }
 
+    hook.getDevice().updateMemoryUsage(MemFree, dptr, 0, device_id);
+
     return result;
 }
 
+CUresult cuCtxGetDevice(CUdevice* device) {
+    CudaHook& hook = CudaHook::getInstance();
+
+    if (!ensureCudaSymbol(hook.ori_cuCtxGetDevice, CUDA_SYMBOL_STRING(cuCtxGetDevice))) {
+        spdlog::error("Unable to resolve original cuCtxGetDevice");
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+
+    return hook.ori_cuCtxGetDevice(device);
+}
+
+CUresult cuCtxSetCurrent(CUcontext ctx) {
+    CudaHook& hook = CudaHook::getInstance();
+
+    if (!ensureCudaSymbol(hook.ori_cuCtxSetCurrent, CUDA_SYMBOL_STRING(cuCtxSetCurrent))) {
+        spdlog::error("Unable to resolve original cuCtxSetCurrent");
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+
+    if (!ensureCudaSymbol(hook.ori_cuCtxGetDevice, CUDA_SYMBOL_STRING(cuCtxGetDevice))) {
+        spdlog::error("Unable to resolve original cuCtxGetDevice");
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+
+    CUresult result = hook.ori_cuCtxSetCurrent(ctx);
+    if (result != CUDA_SUCCESS) {
+        logCudaError(hook, "cuCtxSetCurrent failed", result);
+        return result;
+    }
+
+    CUdevice device;
+    result = hook.ori_cuCtxGetDevice(&device);
+    if (result != CUDA_SUCCESS) {
+        logCudaError(hook, "cuCtxGetDevice failed", result);
+        return result;
+    }
+
+    hook.getDevice().setDeviceId(int(device));
+
+    return result;
+}
 CUresult cuMemGetInfo(size_t* free, size_t* total) {
     CudaHook& hook = CudaHook::getInstance();
+
+    if (size_t limit = hook.getDevice().getDeviceMemoryLimit() > 0){
+        *total = limit;
+        *free = limit - hook.getDevice().getDeviceMemoryUsage();
+        return CUDA_SUCCESS;
+    }
 
     if (!ensureCudaSymbol(hook.ori_cuMemGetInfo, CUDA_SYMBOL_STRING(cuMemGetInfo))) {
         spdlog::error("Unable to resolve original cuMemGetInfo");
@@ -198,18 +246,5 @@ CUresult cuMemGetInfo(size_t* free, size_t* total) {
         return result;
     }
 
-    if (ensureCudaSymbol(hook.ori_cuCtxGetDevice, CUDA_SYMBOL_STRING(cuCtxGetDevice))) {
-        int device_id = -1;
-        const CUresult device_result = hook.ori_cuCtxGetDevice(&device_id);
-        if (device_result == CUDA_SUCCESS) {
-            spdlog::debug("Device {} free: {} total: {}", device_id, *free, *total);
-        } else {
-            logCudaError(hook, "cuCtxGetDevice failed during cuMemGetInfo", device_result);
-        }
-    } else {
-        spdlog::warn("Unable to resolve cuCtxGetDevice - skipping context device logging");
-    }
-
-	// TODO: use client to get memory usage
     return result;
 }
