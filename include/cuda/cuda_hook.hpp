@@ -3,10 +3,9 @@
 
 #include <cuda.h>
 #include "hook/hook.hpp"
-#include "device/device.hpp"
 #include "client/client.hpp"
 
-#define CUDA_LIBRARY_SO "libcuda.so"
+#define CUDA_LIBRARY_SO "libcuda.so.1"
 
 #define ADD_CUDA_SYMBOL(symbol, hook_ptr) \
     {#symbol, { \
@@ -19,14 +18,6 @@
 #define ORI_CUDA_FUNC(name, return_type, ...) \
     using name##_func_ptr = return_type (*)(__VA_ARGS__); \
     name##_func_ptr ori_##name = nullptr;
-
-#define CHECK_CUDA(call) \
-        result = call; \
-        if (result != CUDA_SUCCESS) { \
-            const char* errorString = nullptr; \
-            hook.ori_cuGetErrorString(result, &errorString); \
-            spdlog::error("CUDA error: {}", errorString); \
-        }
 
 
 class CudaHook : public BaseHook<CudaHook> {

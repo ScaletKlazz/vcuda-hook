@@ -5,5 +5,6 @@
 #define unlikely(x)     __builtin_expect(!!(x), 0)
 #define STRINGIFY(x) #x
 #define CUDA_SYMBOL_STRING(x) STRINGIFY(x)
+#define NVML_SYMBOL_STRING(x) STRINGIFY(x)
 
 #endif

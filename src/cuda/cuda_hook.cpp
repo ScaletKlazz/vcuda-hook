@@ -41,7 +41,7 @@ namespace {
         }
 
         fn = reinterpret_cast<FnPtr>(symbol);
-        spdlog::debug("Loaded original symbol {}", symbol_name);
+        spdlog::trace("Loaded original symbol {}", symbol_name);
         return true;
     }
 
@@ -68,6 +68,7 @@ CUresult cuGetProcAddress(const char* symbol, void** pfn, int cudaVersion, cuuin
         return CUDA_ERROR_NOT_INITIALIZED;
     }
 
+    spdlog::debug("cuGetProcAddress request symbol {}", symbol);
     if (std::strcmp(symbol, "cuGetProcAddress") == 0) {
         *pfn = reinterpret_cast<void*>(&cuGetProcAddress);
         return CUDA_SUCCESS;

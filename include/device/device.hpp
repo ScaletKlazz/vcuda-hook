@@ -50,12 +50,12 @@ private:
     Device& operator=(const Device&) = delete;
 
     // member variables
-    int device_id_ = 0;
+    int device_id_ = 0; // device id
+    mutable std::mutex mutex_{}; 
     size_t device_memory_limit_bytes_ = 0; // 0 means unlimited
     std::string device_name_ = ""; // device name
-    mutable std::mutex mutex_;
-    std::vector<size_t> device_usage_;
-    std::vector<std::map<CUdeviceptr, MemoryBlock>> device_memory_blocks_;
+    std::vector<size_t> device_usage_ {};
+    std::vector<std::map<CUdeviceptr, MemoryBlock>> device_memory_blocks_ {};
 };
 
 

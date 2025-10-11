@@ -1,7 +1,7 @@
 #include "device/device.hpp"
 #include "spdlog/spdlog.h"
 #include "util/logger.hpp"
-// #include "util/config.hpp"
+#include "util/config.hpp"
 
 namespace {
     struct LoggerInitializer {
@@ -16,13 +16,13 @@ namespace {
 // Device constructor
 Device::Device()
 { 
-    // if (auto limit = util::Config::memoryLimitBytes()) {
-    //     device_memory_limit_bytes_ = *limit;
-    // }
+    if (auto limit = util::Config::memoryLimitBytes();limit > 0) {
+        device_memory_limit_bytes_ = limit;
+    }
 
-    // if (auto deviceName = util::Config::targetDeviceName()) {
-    //     device_name_ = *deviceName;
-    // }
+    if (auto deviceName = util::Config::targetDeviceName();size(deviceName) > 0) {
+        device_name_ = deviceName;
+    }
 }
 
 void Device::setDeviceId(int device_id) {
