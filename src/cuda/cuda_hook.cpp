@@ -1,4 +1,5 @@
 #include <dlfcn.h>
+#include <cctype>
 #include <cstring>
 #include <iostream>
 
@@ -17,7 +18,6 @@ namespace {
     };
 
     LoggerInitializer g_logger_initializer;
-
     template <typename FnPtr>
     bool ensureCudaSymbol(FnPtr& fn, const char* symbol_name) {
         if (fn) {
@@ -61,22 +61,22 @@ namespace {
     }
 }
 
-CUresult cuGetProcAddress(const char* symbol, void** pfn, int cudaVersion, cuuint64_t flags, CUdriverProcAddressQueryResult* symbolStatus) {
-    CUresult result = CUDA_SUCCESS;
+
+
+CUresult GetProcAddress(const char* symbol, void** pfn, int cudaVersion, cuuint64_t flags) {
     CudaHook& hook = CudaHook::getInstance();
     if (!ensureCudaSymbol(hook.ori_cuGetProcAddress, CUDA_SYMBOL_STRING(cuGetProcAddress))) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
 
-    spdlog::debug("cuGetProcAddress request symbol {}", symbol);
     if (std::strcmp(symbol, "cuGetProcAddress") == 0) {
-        *pfn = reinterpret_cast<void*>(&cuGetProcAddress);
+        *pfn = HOOK_SYMBOL(&GetProcAddress);
         return CUDA_SUCCESS;
     }
 
     CudaHook::HookFuncInfo hookInfo = CudaHook::getHookedSymbol(symbol);
     if (hookInfo.hookedFunc) {
-        result = hook.ori_cuGetProcAddress(symbol, pfn, cudaVersion, flags, symbolStatus);
+        auto result = hook.ori_cuGetProcAddress(symbol, pfn, cudaVersion, flags);
         if (result != CUDA_SUCCESS) {
             return result;
         }
@@ -93,7 +93,44 @@ CUresult cuGetProcAddress(const char* symbol, void** pfn, int cudaVersion, cuuin
     }
     
     if (hook.ori_cuGetProcAddress) {
-        return hook.ori_cuGetProcAddress(symbol, pfn, cudaVersion, flags, symbolStatus);
+        return hook.ori_cuGetProcAddress(symbol, pfn, cudaVersion, flags);
+    }
+    
+    return CUDA_ERROR_NOT_INITIALIZED;
+}
+
+CUresult GetProcAddress_v2(const char* symbol, void** pfn, int cudaVersion, cuuint64_t flags, CUdriverProcAddressQueryResult* symbolStatus) {
+    CudaHook& hook = CudaHook::getInstance();
+    if (!ensureCudaSymbol(hook.ori_cuGetProcAddress_v2, CUDA_SYMBOL_STRING(cuGetProcAddress_v2))) {
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+
+    spdlog::debug("cuGetProcAddress request symbol {}", symbol);
+    if (std::strcmp(symbol, "cuGetProcAddress") == 0 || std::strcmp(symbol, "cuGetProcAddress_v2") == 0) {
+        *pfn = HOOK_SYMBOL(&GetProcAddress_v2);
+        return CUDA_SUCCESS;
+    }
+
+    CudaHook::HookFuncInfo hookInfo = CudaHook::getHookedSymbol(symbol);
+    if (hookInfo.hookedFunc) {
+        auto result = hook.ori_cuGetProcAddress_v2(symbol, pfn, cudaVersion, flags, symbolStatus);
+        if (result != CUDA_SUCCESS) {
+            return result;
+        }
+        
+        if (hookInfo.original) {
+            hookInfo.original(hook, *pfn);
+        }
+        
+        if (hookInfo.hookedFunc != NO_HOOK) {
+            *pfn = hookInfo.hookedFunc;
+        }
+
+        return result;
+    }
+    
+    if (hook.ori_cuGetProcAddress_v2) {
+        return hook.ori_cuGetProcAddress_v2(symbol, pfn, cudaVersion, flags, symbolStatus);
     }
     
     return CUDA_ERROR_NOT_INITIALIZED;
@@ -244,6 +281,28 @@ CUresult cuMemGetInfo(size_t* free, size_t* total) {
     const CUresult result = hook.ori_cuMemGetInfo(free, total);
     if (result != CUDA_SUCCESS) {
         logCudaError(hook, "cuMemGetInfo failed", result);
+        return result;
+    }
+
+    return result;
+}
+
+CUresult cuDeviceTotalMem(size_t *bytes, CUdevice dev){
+    CudaHook& hook = CudaHook::getInstance();
+
+    if (size_t limit = hook.getDevice().getDeviceMemoryLimit(int(dev)) > 0){
+        *bytes = limit;
+        return CUDA_SUCCESS;
+    }
+
+    if (!ensureCudaSymbol(hook.ori_cuDeviceTotalMem, CUDA_SYMBOL_STRING(cuDeviceTotalMem))) {
+        spdlog::error("Unable to resolve original cuDeviceTotalMem");
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+
+    const CUresult result = hook.ori_cuDeviceTotalMem(bytes, dev);
+    if (result != CUDA_SUCCESS) {
+        logCudaError(hook, "cuDeviceTotalMem failed", result);
         return result;
     }
 

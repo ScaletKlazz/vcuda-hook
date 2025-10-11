@@ -23,7 +23,8 @@
 class CudaHook : public BaseHook<CudaHook> {
 public:
     // Symbols
-    ORI_CUDA_FUNC(cuGetProcAddress, CUresult, const char*, void**, int, cuuint64_t, CUdriverProcAddressQueryResult*);
+    ORI_CUDA_FUNC(cuGetProcAddress, CUresult, const char*, void**, int, cuuint64_t);
+    ORI_CUDA_FUNC(cuGetProcAddress_v2, CUresult, const char*, void**, int, cuuint64_t, CUdriverProcAddressQueryResult*);
     ORI_CUDA_FUNC(cuMemAlloc, CUresult, CUdeviceptr*, size_t);
     ORI_CUDA_FUNC(cuDeviceGet, CUresult, CUdevice*, int);
     ORI_CUDA_FUNC(cuMemAllocHost, CUresult, void**, size_t);
@@ -34,10 +35,12 @@ public:
     ORI_CUDA_FUNC(cuCtxSetCurrent, CUresult, CUcontext);
     ORI_CUDA_FUNC(cuPointerGetAttribute, CUresult, void*, CUpointer_attribute, CUdeviceptr);
     ORI_CUDA_FUNC(cuMemGetInfo, CUresult, size_t*, size_t*);
+    ORI_CUDA_FUNC(cuDeviceTotalMem, CUresult, size_t*, CUdevice);
 
     static const std::unordered_map<std::string, HookFuncInfo>& getHookMap() {
         static const std::unordered_map<std::string, HookFuncInfo> map = {
-            ADD_CUDA_SYMBOL(cuGetProcAddress, HOOK_SYMBOL(&cuGetProcAddress)),
+            ADD_CUDA_SYMBOL(cuGetProcAddress, HOOK_SYMBOL(&GetProcAddress)),
+            ADD_CUDA_SYMBOL(cuGetProcAddress_v2, HOOK_SYMBOL(&GetProcAddress_v2)),
             ADD_CUDA_SYMBOL(cuMemAlloc, HOOK_SYMBOL(&cuMemAlloc)),
             ADD_CUDA_SYMBOL(cuDeviceGet, HOOK_SYMBOL(&cuDeviceGet)),
             ADD_CUDA_SYMBOL(cuInit, HOOK_SYMBOL(&cuInit)),
@@ -47,6 +50,7 @@ public:
             ADD_CUDA_SYMBOL(cuCtxSetCurrent, HOOK_SYMBOL(&cuCtxSetCurrent)),
             ADD_CUDA_SYMBOL(cuPointerGetAttribute, NO_HOOK),
             ADD_CUDA_SYMBOL(cuMemGetInfo, HOOK_SYMBOL(&cuMemGetInfo)),
+            ADD_CUDA_SYMBOL(cuDeviceTotalMem, HOOK_SYMBOL(&cuDeviceTotalMem)),
         };
         return map;
     }
