@@ -7,13 +7,13 @@ a transparent-level library overhook lib-cuda and lib-nvidia-ml
 
 # Build Dependencies
 - [CMake](https://cmake.org) >= 3.19
-- [Docker](https://www.docker.com)]
+- [Docker](https://www.docker.com) > 20.10
 - [CUDA](https://developer.nvidia.com/cuda-zone) >= 12.6
 - [Yaml-cpp](https://github.com/jbeder/yaml-cpp) > 0.7
 - [Spdlog](https://github.com/gabime/spdlog) > 1.x
 
 # How to Use
-## build library
+## build
 1. build builder image
 ```
 bash ./hack/build-builder.sh
@@ -22,7 +22,7 @@ bash ./hack/build-builder.sh
 ```
 bash ./hack/build-via-docker.sh
 ```
-## run application
+## usage
 ```
 # manual
 LD_PRELOAD=/path/to/libvcuda-hook.so your_application
@@ -34,11 +34,17 @@ docker run -it --gpus all --rm -v /path/to/libvcuda-hook.so:/usr/lib64/libvcuda-
 # Features
 
 ## GPU Virtualization Features
+
+### Base Features
 - [ √ ] Fractional GPU
 - [ √ ] Memory Control
 - [ ] Multi-Process Unified Control
 - [ ] Container GPU Sharing
 - ...
+
+### More Features
+- ...
+
 
 ## Why This Project?
 Based on several core motivations, I developed this project:
