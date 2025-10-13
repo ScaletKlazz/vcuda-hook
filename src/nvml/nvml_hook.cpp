@@ -16,7 +16,6 @@ namespace {
     };
 
     LoggerInitializer g_logger_initializer;
-
     template <typename FnPtr>
     bool ensureNvmlSymbol(FnPtr& fn, const char* symbol_name) {
         if (fn) {
@@ -46,7 +45,7 @@ namespace {
 
     void logNvmlError(NvmlHook& hook, const char* context, nvmlReturn_t code) {
         const char* error_string = nullptr;
-        if (hook.ori_nvmlErrorString || ensureNvmlSymbol(hook.ori_nvmlErrorString, NVML_SYMBOL_STRING(nvmlErrorString))) {
+        if (hook.ori_nvmlErrorString || ensureNvmlSymbol(hook.ori_nvmlErrorString, SYMBOL_STRING(nvmlErrorString))) {
             if (hook.ori_nvmlErrorString(code, &error_string) != NVML_SUCCESS) {
                 error_string = nullptr;
             }
@@ -76,7 +75,7 @@ nvmlReturn_t nvmlDeviceGetMemoryInfo(nvmlDevice_t device, nvmlMemory_t* memory){
         return NVML_SUCCESS;
     }
 
-    if (!ensureNvmlSymbol(hook.ori_nvmlDeviceGetMemoryInfo, NVML_SYMBOL_STRING(nvmlDeviceGetMemoryInfo))) {
+    if (!ensureNvmlSymbol(hook.ori_nvmlDeviceGetMemoryInfo, SYMBOL_STRING(nvmlDeviceGetMemoryInfo))) {
         spdlog::error("Unable to resolve original nvmlDeviceGetMemoryInfo");
         return NVML_ERROR_UNINITIALIZED ;
     }
@@ -103,7 +102,7 @@ nvmlReturn_t nvmlDeviceGetMemoryInfo_v2(nvmlDevice_t device, nvmlMemory_v2_t* me
         return NVML_SUCCESS;
     }
 
-    if (!ensureNvmlSymbol(hook.ori_nvmlDeviceGetMemoryInfo_v2, NVML_SYMBOL_STRING(nvmlDeviceGetMemoryInfo_v2))) {
+    if (!ensureNvmlSymbol(hook.ori_nvmlDeviceGetMemoryInfo_v2, SYMBOL_STRING(nvmlDeviceGetMemoryInfo_v2))) {
         spdlog::error("Unable to resolve original nvmlDeviceGetMemoryInfo_v2");
         return NVML_ERROR_UNINITIALIZED ;
     }
@@ -125,7 +124,7 @@ nvmlReturn_t nvmlDeviceGetName(nvmlDevice_t device, char* name, unsigned int len
         return NVML_SUCCESS;
     }
 
-    if (!ensureNvmlSymbol(hook.ori_nvmlDeviceGetName, NVML_SYMBOL_STRING(nvmlDeviceGetName))) {
+    if (!ensureNvmlSymbol(hook.ori_nvmlDeviceGetName, SYMBOL_STRING(nvmlDeviceGetName))) {
         spdlog::error("Unable to resolve original nvmlDeviceGetName");
         return NVML_ERROR_UNINITIALIZED ;
     }

@@ -4,29 +4,26 @@
 #include <nvml.h>
 #include "hook/hook.hpp"
 #include "client/client.hpp"
+#include "util/util.hpp"
 
 #define NVML_LIBRARY_SO "libnvidia-ml.so.1"
 
 #define ADD_NVML_SYMBOL(symbol, hook_ptr) \
-    {#symbol, { \
+    {SYMBOL_STRING(symbol), { \
         hook_ptr, \
         [](NvmlHook& hook, void* ptr) { \
-            hook.ori_##symbol = reinterpret_cast<NvmlHook::symbol##_func_ptr>(ptr); \
+            hook.CAT(ori_, EVAL(symbol)) = reinterpret_cast<NvmlHook::CAT(EVAL(symbol), _func_ptr)>(ptr); \
         } \
     }}
-
-#define ORI_NVML_FUNC(name, return_type, ...) \
-    using name##_func_ptr = return_type (*)(__VA_ARGS__); \
-    name##_func_ptr ori_##name = nullptr;
 
 
 class NvmlHook : public BaseHook<NvmlHook> {
 public:
     // Symbols
-    ORI_NVML_FUNC(nvmlErrorString, nvmlReturn_t, nvmlReturn_t, const char**);
-    ORI_NVML_FUNC(nvmlDeviceGetMemoryInfo, nvmlReturn_t, nvmlDevice_t, nvmlMemory_t*);
-    ORI_NVML_FUNC(nvmlDeviceGetMemoryInfo_v2, nvmlReturn_t, nvmlDevice_t, nvmlMemory_v2_t*);
-    ORI_NVML_FUNC(nvmlDeviceGetName, nvmlReturn_t, nvmlDevice_t, char*, unsigned int);
+    ORI_FUNC(nvmlErrorString, nvmlReturn_t, nvmlReturn_t, const char**);
+    ORI_FUNC(nvmlDeviceGetMemoryInfo, nvmlReturn_t, nvmlDevice_t, nvmlMemory_t*);
+    ORI_FUNC(nvmlDeviceGetMemoryInfo_v2, nvmlReturn_t, nvmlDevice_t, nvmlMemory_v2_t*);
+    ORI_FUNC(nvmlDeviceGetName, nvmlReturn_t, nvmlDevice_t, char*, unsigned int);
 
     
     static const std::unordered_map<std::string, HookFuncInfo>& getHookMap() {

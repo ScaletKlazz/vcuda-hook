@@ -1,11 +1,9 @@
 #include <dlfcn.h>
-#include <cctype>
 #include <cstring>
 #include <iostream>
 
 #include "spdlog/spdlog.h"
 #include "util/logger.hpp"
-#include "util/util.hpp"
 #include "cuda/cuda_hook.hpp"
 
 extern void* real_dlsym(void*, const char*);
@@ -47,7 +45,7 @@ namespace {
 
     void logCudaError(CudaHook& hook, const char* context, CUresult code) {
         const char* error_string = nullptr;
-        if (hook.ori_cuGetErrorString || ensureCudaSymbol(hook.ori_cuGetErrorString, CUDA_SYMBOL_STRING(cuGetErrorString))) {
+        if (hook.ori_cuGetErrorString || ensureCudaSymbol(hook.ori_cuGetErrorString, SYMBOL_STRING(cuGetErrorString))) {
             if (hook.ori_cuGetErrorString(code, &error_string) != CUDA_SUCCESS) {
                 error_string = nullptr;
             }
@@ -61,53 +59,14 @@ namespace {
     }
 }
 
-
-
-CUresult GetProcAddress(const char* symbol, void** pfn, int cudaVersion, cuuint64_t flags) {
+CUresult cuGetProcAddress(const char* symbol, void** pfn, int cudaVersion, cuuint64_t flags, CUdriverProcAddressQueryResult* symbolStatus) {
     CudaHook& hook = CudaHook::getInstance();
-    if (!ensureCudaSymbol(hook.ori_cuGetProcAddress, CUDA_SYMBOL_STRING(cuGetProcAddress))) {
+    if (!ensureCudaSymbol(hook.ori_cuGetProcAddress_v2, SYMBOL_STRING(cuGetProcAddress))) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
 
     if (std::strcmp(symbol, "cuGetProcAddress") == 0) {
-        *pfn = HOOK_SYMBOL(&GetProcAddress);
-        return CUDA_SUCCESS;
-    }
-
-    CudaHook::HookFuncInfo hookInfo = CudaHook::getHookedSymbol(symbol);
-    if (hookInfo.hookedFunc) {
-        auto result = hook.ori_cuGetProcAddress(symbol, pfn, cudaVersion, flags);
-        if (result != CUDA_SUCCESS) {
-            return result;
-        }
-        
-        if (hookInfo.original) {
-            hookInfo.original(hook, *pfn);
-        }
-        
-        if (hookInfo.hookedFunc != NO_HOOK) {
-            *pfn = hookInfo.hookedFunc;
-        }
-
-        return result;
-    }
-    
-    if (hook.ori_cuGetProcAddress) {
-        return hook.ori_cuGetProcAddress(symbol, pfn, cudaVersion, flags);
-    }
-    
-    return CUDA_ERROR_NOT_INITIALIZED;
-}
-
-CUresult GetProcAddress_v2(const char* symbol, void** pfn, int cudaVersion, cuuint64_t flags, CUdriverProcAddressQueryResult* symbolStatus) {
-    CudaHook& hook = CudaHook::getInstance();
-    if (!ensureCudaSymbol(hook.ori_cuGetProcAddress_v2, CUDA_SYMBOL_STRING(cuGetProcAddress_v2))) {
-        return CUDA_ERROR_NOT_INITIALIZED;
-    }
-
-    spdlog::debug("cuGetProcAddress request symbol {}", symbol);
-    if (std::strcmp(symbol, "cuGetProcAddress") == 0 || std::strcmp(symbol, "cuGetProcAddress_v2") == 0) {
-        *pfn = HOOK_SYMBOL(&GetProcAddress_v2);
+        *pfn = HOOK_SYMBOL(&cuGetProcAddress);
         return CUDA_SUCCESS;
     }
 
@@ -140,7 +99,7 @@ CUresult cuInit(unsigned int Flags) {
     spdlog::debug("cuInit request Flags {}", Flags);
     CudaHook& hook = CudaHook::getInstance();
 
-    if (!ensureCudaSymbol(hook.ori_cuInit, CUDA_SYMBOL_STRING(cuInit))) {
+    if (!ensureCudaSymbol(hook.ori_cuInit, SYMBOL_STRING(cuInit))) {
         spdlog::error("Unable to resolve original cuInit");
         return CUDA_ERROR_NOT_INITIALIZED;
     }
@@ -156,18 +115,18 @@ CUresult cuInit(unsigned int Flags) {
 CUresult cuMemAlloc(CUdeviceptr* dptr, size_t byteSize) {
     CudaHook& hook = CudaHook::getInstance();
 
-    if (!ensureCudaSymbol(hook.ori_cuMemAlloc, CUDA_SYMBOL_STRING(cuMemAlloc))) {
+    if (!ensureCudaSymbol(hook.ori_cuMemAlloc_v2, SYMBOL_STRING(cuMemAlloc))) {
         spdlog::error("Unable to resolve original cuMemAlloc");
         return CUDA_ERROR_NOT_INITIALIZED;
     }
 
-    const CUresult result = hook.ori_cuMemAlloc(dptr, byteSize);
+    const CUresult result = hook.ori_cuMemAlloc_v2(dptr, byteSize);
     if (result != CUDA_SUCCESS) {
         logCudaError(hook, "cuMemAlloc failed", result);
         return result;
     }
 
-    if (!ensureCudaSymbol(hook.ori_cuPointerGetAttribute, CUDA_SYMBOL_STRING(cuPointerGetAttribute))) {
+    if (!ensureCudaSymbol(hook.ori_cuPointerGetAttribute, SYMBOL_STRING(cuPointerGetAttribute))) {
         spdlog::warn("Unable to resolve cuPointerGetAttribute - skipping device attribution for allocation");
         return result;
     }
@@ -187,7 +146,7 @@ CUresult cuMemAlloc(CUdeviceptr* dptr, size_t byteSize) {
 CUresult cuDeviceGet(CUdevice* device, int ordinal) {
     CudaHook& hook = CudaHook::getInstance();
 
-    if (!ensureCudaSymbol(hook.ori_cuDeviceGet, CUDA_SYMBOL_STRING(cuDeviceGet))) {
+    if (!ensureCudaSymbol(hook.ori_cuDeviceGet, SYMBOL_STRING(cuDeviceGet))) {
         spdlog::error("Unable to resolve original cuDeviceGet");
         return CUDA_ERROR_NOT_INITIALIZED;
     }
@@ -198,13 +157,13 @@ CUresult cuDeviceGet(CUdevice* device, int ordinal) {
 CUresult cuMemFree(CUdeviceptr dptr) {
     CudaHook& hook = CudaHook::getInstance();
 
-    if (!ensureCudaSymbol(hook.ori_cuMemFree, CUDA_SYMBOL_STRING(cuMemFree))) {
+    if (!ensureCudaSymbol(hook.ori_cuMemFree_v2, SYMBOL_STRING(cuMemFree))) {
         spdlog::error("Unable to resolve original cuMemFree");
         return CUDA_ERROR_NOT_INITIALIZED;
     }
 
     int device_id = -1;
-    if (ensureCudaSymbol(hook.ori_cuPointerGetAttribute, CUDA_SYMBOL_STRING(cuPointerGetAttribute))) {
+    if (ensureCudaSymbol(hook.ori_cuPointerGetAttribute, SYMBOL_STRING(cuPointerGetAttribute))) {
         const CUresult attr_result = hook.ori_cuPointerGetAttribute(&device_id, CU_POINTER_ATTRIBUTE_DEVICE_ORDINAL, dptr);
         if (attr_result != CUDA_SUCCESS) {
             logCudaError(hook, "cuPointerGetAttribute failed during cuMemFree", attr_result);
@@ -213,7 +172,7 @@ CUresult cuMemFree(CUdeviceptr dptr) {
         spdlog::warn("Unable to resolve cuPointerGetAttribute - skipping device attribution for free");
     }
 
-    const CUresult result = hook.ori_cuMemFree(dptr);
+    const CUresult result = hook.ori_cuMemFree_v2(dptr);
     if (result != CUDA_SUCCESS) {
         logCudaError(hook, "cuMemFree failed", result);
     }
@@ -226,7 +185,7 @@ CUresult cuMemFree(CUdeviceptr dptr) {
 CUresult cuCtxGetDevice(CUdevice* device) {
     CudaHook& hook = CudaHook::getInstance();
 
-    if (!ensureCudaSymbol(hook.ori_cuCtxGetDevice, CUDA_SYMBOL_STRING(cuCtxGetDevice))) {
+    if (!ensureCudaSymbol(hook.ori_cuCtxGetDevice, SYMBOL_STRING(cuCtxGetDevice))) {
         spdlog::error("Unable to resolve original cuCtxGetDevice");
         return CUDA_ERROR_NOT_INITIALIZED;
     }
@@ -237,12 +196,12 @@ CUresult cuCtxGetDevice(CUdevice* device) {
 CUresult cuCtxSetCurrent(CUcontext ctx) {
     CudaHook& hook = CudaHook::getInstance();
 
-    if (!ensureCudaSymbol(hook.ori_cuCtxSetCurrent, CUDA_SYMBOL_STRING(cuCtxSetCurrent))) {
+    if (!ensureCudaSymbol(hook.ori_cuCtxSetCurrent, SYMBOL_STRING(cuCtxSetCurrent))) {
         spdlog::error("Unable to resolve original cuCtxSetCurrent");
         return CUDA_ERROR_NOT_INITIALIZED;
     }
 
-    if (!ensureCudaSymbol(hook.ori_cuCtxGetDevice, CUDA_SYMBOL_STRING(cuCtxGetDevice))) {
+    if (!ensureCudaSymbol(hook.ori_cuCtxGetDevice, SYMBOL_STRING(cuCtxGetDevice))) {
         spdlog::error("Unable to resolve original cuCtxGetDevice");
         return CUDA_ERROR_NOT_INITIALIZED;
     }
@@ -273,12 +232,12 @@ CUresult cuMemGetInfo(size_t* free, size_t* total) {
         return CUDA_SUCCESS;
     }
 
-    if (!ensureCudaSymbol(hook.ori_cuMemGetInfo, CUDA_SYMBOL_STRING(cuMemGetInfo))) {
+    if (!ensureCudaSymbol(hook.ori_cuMemGetInfo_v2, SYMBOL_STRING(cuMemGetInfo))) {
         spdlog::error("Unable to resolve original cuMemGetInfo");
         return CUDA_ERROR_NOT_INITIALIZED;
     }
 
-    const CUresult result = hook.ori_cuMemGetInfo(free, total);
+    const CUresult result = hook.ori_cuMemGetInfo_v2(free, total);
     if (result != CUDA_SUCCESS) {
         logCudaError(hook, "cuMemGetInfo failed", result);
         return result;
@@ -295,12 +254,12 @@ CUresult cuDeviceTotalMem(size_t *bytes, CUdevice dev){
         return CUDA_SUCCESS;
     }
 
-    if (!ensureCudaSymbol(hook.ori_cuDeviceTotalMem, CUDA_SYMBOL_STRING(cuDeviceTotalMem))) {
+    if (!ensureCudaSymbol(hook.ori_cuDeviceTotalMem_v2, SYMBOL_STRING(cuDeviceTotalMem))) {
         spdlog::error("Unable to resolve original cuDeviceTotalMem");
         return CUDA_ERROR_NOT_INITIALIZED;
     }
 
-    const CUresult result = hook.ori_cuDeviceTotalMem(bytes, dev);
+    const CUresult result = hook.ori_cuDeviceTotalMem_v2(bytes, dev);
     if (result != CUDA_SUCCESS) {
         logCudaError(hook, "cuDeviceTotalMem failed", result);
         return result;
