@@ -1,6 +1,9 @@
 #ifndef UTIL_DEFINDE
 #define UTIL_DEFINDE 
 
+#define MACRO_TAG_YES 1
+#define MACRO_TAG_NO  0
+
 #define likely(x)       __builtin_expect(!!(x), 1)
 #define unlikely(x)     __builtin_expect(!!(x), 0)
 
