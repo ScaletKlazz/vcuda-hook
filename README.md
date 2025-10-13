@@ -22,10 +22,17 @@ bash ./hack/build-builder.sh
 ```
 bash ./hack/build-via-docker.sh
 ```
+## configure
+```
+# use env
+export LD_PRELOAD=/path/to/libvcuda-hook.so
+export VCUDA_LOG_LEVEL=debug
+export VCUDA_MEMORY_LIMIT=(1024 * 1024 * 1024 * 10) // limit 10G
+```
 ## usage
 ```
 # manual
-LD_PRELOAD=/path/to/libvcuda-hook.so your_application
+your_application
 
 # or use docker
 docker run -it --gpus all --rm -v /path/to/libvcuda-hook.so:/usr/lib64/libvcuda-hook.so -e LD_PRELOAD=/usr/lib64/libvcuda-hook.so your_image
