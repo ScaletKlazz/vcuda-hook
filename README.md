@@ -63,3 +63,6 @@ Based on several core motivations, I developed this project:
 - Transparent Proxy Layer: Serve as a transparent proxy for CUDA dynamic libraries, enabling GPU virtualization functionality without modifying existing applications
 
 This project aims to provide a simple and easy-to-use GPU virtualization solution for containerized environments, enabling safe and efficient sharing of GPU resources among multiple containers.
+
+## Contributing
+[Code of conduct](/CODE_OF_CONDUCT.md)
