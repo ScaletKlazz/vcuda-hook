@@ -65,6 +65,7 @@ CUresult cuGetProcAddress(const char* symbol, void** pfn, int cudaVersion, cuuin
         return CUDA_ERROR_NOT_INITIALIZED;
     }
 
+    spdlog::trace("cuGetProcAddress: {}", symbol);
     if (std::strcmp(symbol, "cuGetProcAddress") == 0) {
         *pfn = HOOK_SYMBOL(&cuGetProcAddress);
         return CUDA_SUCCESS;
@@ -82,6 +83,7 @@ CUresult cuGetProcAddress(const char* symbol, void** pfn, int cudaVersion, cuuin
         }
         
         if (hookInfo.hookedFunc != NO_HOOK) {
+            spdlog::debug("cuGetProcAddress Hook: {}", symbol);
             *pfn = hookInfo.hookedFunc;
         }
 
@@ -96,7 +98,6 @@ CUresult cuGetProcAddress(const char* symbol, void** pfn, int cudaVersion, cuuin
 }
 
 CUresult cuInit(unsigned int Flags) {
-    spdlog::debug("cuInit request Flags {}", Flags);
     CudaHook& hook = CudaHook::getInstance();
 
     if (!ensureCudaSymbol(hook.ori_cuInit, SYMBOL_STRING(cuInit))) {
@@ -120,6 +121,15 @@ CUresult cuMemAlloc(CUdeviceptr* dptr, size_t byteSize) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
 
+    auto limit = hook.getDevice().getDeviceMemoryLimit();
+    if(limit > 0){
+        spdlog::debug("Memory limit: {}", limit);
+        if(hook.getDevice().getDeviceMemoryUsage() + byteSize > limit){
+            spdlog::error("Out of memory, trying to allocate {} bytes, current usage {}", byteSize, hook.getDevice().getDeviceMemoryUsage());
+            return CUDA_ERROR_OUT_OF_MEMORY;
+        }
+    }
+
     const CUresult result = hook.ori_cuMemAlloc_v2(dptr, byteSize);
     if (result != CUDA_SUCCESS) {
         logCudaError(hook, "cuMemAlloc failed", result);
@@ -128,13 +138,6 @@ CUresult cuMemAlloc(CUdeviceptr* dptr, size_t byteSize) {
 
     if (!ensureCudaSymbol(hook.ori_cuPointerGetAttribute, SYMBOL_STRING(cuPointerGetAttribute))) {
         spdlog::warn("Unable to resolve cuPointerGetAttribute - skipping device attribution for allocation");
-        return result;
-    }
-
-    int device_id = -1;
-    const CUresult attr_result = hook.ori_cuPointerGetAttribute(&device_id, CU_POINTER_ATTRIBUTE_DEVICE_ORDINAL, *dptr);
-    if (attr_result != CUDA_SUCCESS) {
-        logCudaError(hook, "cuPointerGetAttribute failed during cuMemAlloc", attr_result);
         return result;
     }
 
@@ -249,7 +252,7 @@ CUresult cuMemGetInfo(size_t* free, size_t* total) {
 CUresult cuDeviceTotalMem(size_t *bytes, CUdevice dev){
     CudaHook& hook = CudaHook::getInstance();
 
-    if (size_t limit = hook.getDevice().getDeviceMemoryLimit(int(dev)) > 0){
+    if (size_t limit = hook.getDevice().getDeviceMemoryLimit(int(dev)); limit > 0){
         *bytes = limit;
         return CUDA_SUCCESS;
     }

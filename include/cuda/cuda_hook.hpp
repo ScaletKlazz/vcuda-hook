@@ -9,12 +9,22 @@
 #define CUDA_LIBRARY_SO "libcuda.so.1"
 
 #define ADD_CUDA_SYMBOL(symbol, hook_ptr) \
-    {SYMBOL_STRING(symbol), { \
+    {#symbol, { \
         hook_ptr, \
         [](CudaHook& hook, void* ptr) { \
             hook.CAT(ori_, EVAL(symbol)) = reinterpret_cast<CudaHook::CAT(EVAL(symbol), _func_ptr)>(ptr); \
         } \
     }}
+
+#define MULTI_CUDA_SYMBOL(symbol, hook_ptr) \
+    {SYMBOL_STRING(symbol), { \
+        hook_ptr, \
+        [](CudaHook& hook, void* ptr) { \
+            hook.CAT(ori_, EVAL(symbol)) = reinterpret_cast<CudaHook::CAT(EVAL(symbol), _func_ptr)>(ptr); \
+        } \
+    }}, \
+    ADD_CUDA_SYMBOL(symbol, hook_ptr)   
+
 
 
 class CudaHook : public BaseHook<CudaHook> {
@@ -35,17 +45,18 @@ public:
 
     static const std::unordered_map<std::string, HookFuncInfo>& getHookMap() {
         static const std::unordered_map<std::string, HookFuncInfo> map = {
-            ADD_CUDA_SYMBOL(cuGetProcAddress, HOOK_SYMBOL(&cuGetProcAddress)),
-            ADD_CUDA_SYMBOL(cuMemAlloc, HOOK_SYMBOL(&cuMemAlloc)),
+            MULTI_CUDA_SYMBOL(cuGetProcAddress, HOOK_SYMBOL(&cuGetProcAddress)),
+            MULTI_CUDA_SYMBOL(cuMemAlloc, HOOK_SYMBOL(&cuMemAlloc)),
             ADD_CUDA_SYMBOL(cuDeviceGet, HOOK_SYMBOL(&cuDeviceGet)),
+            MULTI_CUDA_SYMBOL(cuMemAllocHost, NO_HOOK),
             ADD_CUDA_SYMBOL(cuInit, HOOK_SYMBOL(&cuInit)),
             ADD_CUDA_SYMBOL(cuGetErrorString, NO_HOOK),
-            ADD_CUDA_SYMBOL(cuMemFree, HOOK_SYMBOL(&cuMemFree)),
+            MULTI_CUDA_SYMBOL(cuMemFree, HOOK_SYMBOL(&cuMemFree)),
             ADD_CUDA_SYMBOL(cuCtxGetDevice, HOOK_SYMBOL(&cuCtxGetDevice)),
             ADD_CUDA_SYMBOL(cuCtxSetCurrent, HOOK_SYMBOL(&cuCtxSetCurrent)),
             ADD_CUDA_SYMBOL(cuPointerGetAttribute, NO_HOOK),
-            ADD_CUDA_SYMBOL(cuMemGetInfo, HOOK_SYMBOL(&cuMemGetInfo)),
-            ADD_CUDA_SYMBOL(cuDeviceTotalMem, HOOK_SYMBOL(&cuDeviceTotalMem)),
+            MULTI_CUDA_SYMBOL(cuMemGetInfo, HOOK_SYMBOL(&cuMemGetInfo)),
+            MULTI_CUDA_SYMBOL(cuDeviceTotalMem, HOOK_SYMBOL(&cuDeviceTotalMem)),
         };
         return map;
     }

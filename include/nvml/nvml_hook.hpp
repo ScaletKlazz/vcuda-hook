@@ -9,7 +9,7 @@
 #define NVML_LIBRARY_SO "libnvidia-ml.so.1"
 
 #define ADD_NVML_SYMBOL(symbol, hook_ptr) \
-    {SYMBOL_STRING(symbol), { \
+    {#symbol, { \
         hook_ptr, \
         [](NvmlHook& hook, void* ptr) { \
             hook.CAT(ori_, EVAL(symbol)) = reinterpret_cast<NvmlHook::CAT(EVAL(symbol), _func_ptr)>(ptr); \
