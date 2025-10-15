@@ -43,9 +43,10 @@ docker run -it --gpus all --rm -v /path/to/libvcuda-hook.so:/usr/lib64/libvcuda-
 ## GPU Virtualization Features
 
 ### Base Features
+- ✅ Minimal Performance Overhead
 - ✅ Fractional GPU Usage
 - ✅ Fine-grained GPU Memory Control
-- ✅ Multi‑Process Unified Control
+- ✅ Multi‑Process GPU Memory Unified Control
 - ✅ Container GPU Sharing
 - ☐ Kubernetes Support
 - ...
