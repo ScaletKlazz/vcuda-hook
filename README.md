@@ -45,11 +45,15 @@ docker run -it --gpus all --rm -v /path/to/libvcuda-hook.so:/usr/lib64/libvcuda-
 ### Base Features
 - ✅ Fractional GPU Usage
 - ✅ Fine-grained GPU Memory Control
-- ☐ Multi‑Process Unified Control
-- ☐ Container GPU Sharing
+- ✅ Multi‑Process Unified Control
+- ✅ Container GPU Sharing
+- ☐ Kubernetes Support
 - ...
 
 ### More Features
+- ☐ Remote GPU Call Over Network
+- ☐ Oversub GPU Memory Control
+- ☐ GPU Task Hot Snapshot
 - ...
 
 

@@ -17,13 +17,19 @@
     }}
 
 #define MULTI_CUDA_SYMBOL(symbol, hook_ptr) \
-    {SYMBOL_STRING(symbol), { \
+    {#symbol, { \
         hook_ptr, \
         [](CudaHook& hook, void* ptr) { \
             hook.CAT(ori_, EVAL(symbol)) = reinterpret_cast<CudaHook::CAT(EVAL(symbol), _func_ptr)>(ptr); \
         } \
     }}, \
-    ADD_CUDA_SYMBOL(symbol, hook_ptr)   
+    {SYMBOL_STRING(symbol), { \
+        hook_ptr, \
+        [](CudaHook& hook, void* ptr) { \
+            hook.CAT(ori_, EVAL(symbol)) = reinterpret_cast<CudaHook::CAT(EVAL(symbol), _func_ptr)>(ptr); \
+        } \
+    }}
+      
 
 
 

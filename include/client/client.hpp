@@ -1,15 +1,16 @@
 #ifndef CLIENT_HPP
 #define CLIENT_HPP
 
-#include <vector>
-#include <atomic>
-#include <functional>
 #include <mutex>
 #include <pthread.h>
+#include <atomic>
 
-#include "device/device.hpp"
+#include "util/usage.hpp"
 
 #define MAX_PROCESS_NUM 8
+
+#define SHM_NAME "vcuda_usage"
+#define SHM_SIZE sizeof(MultiProcessMetricData) * MAX_PROCESS_NUM
 
 
 class Client {
@@ -17,27 +18,24 @@ public:
     struct MultiProcessMetricData { // multi process metric data for each process
         std::atomic<bool> initialized{false};
         pthread_mutex_t lock;
-        std::vector<Device::ProcessUsage> usage;
-    };
+        std::array<util::ProcessUsage, MAX_PROCESS_NUM> usage{};
+    } __attribute__((aligned(64)));
 
-    using ProcessUsageHandler = std::function<void(const Device::ProcessUsage&)>;
 
-    static Client& instance();
+    static Client& getInstance();
 
-    void registerProcessUsageHandler(ProcessUsageHandler handler);
+    void create_or_attach_process_metric_data();
 
-    void syncForProcess(int process_id);
+    size_t get_device_process_metric_data(int);
+    void update_process_metric_data(util::ProcessUsage&);
 
 private:
     Client();
+    ~Client();
     Client(const Client&) = delete;
     Client& operator=(const Client&) = delete;
 
-    void handleProcessUsageUpdate(const Device::ProcessUsage& usage);
-
-    std::mutex handlers_mutex_;
-    std::vector<ProcessUsageHandler> handlers_;
-    Device device_;
+    MultiProcessMetricData* process_metric_data_ = nullptr;
 };
 
 #endif // CLIENT_HPP

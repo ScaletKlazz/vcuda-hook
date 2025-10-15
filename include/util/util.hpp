@@ -4,6 +4,9 @@
 #define MACRO_TAG_YES 1
 #define MACRO_TAG_NO  0
 
+#define DEVICE_MAX_NUM 8
+#define DEVICE_INDEX_CURRENT -1
+
 #define likely(x)       __builtin_expect(!!(x), 1)
 #define unlikely(x)     __builtin_expect(!!(x), 0)
 

@@ -229,7 +229,7 @@ CUresult cuCtxSetCurrent(CUcontext ctx) {
 CUresult cuMemGetInfo(size_t* free, size_t* total) {
     CudaHook& hook = CudaHook::getInstance();
 
-    if (size_t limit = hook.getDevice().getDeviceMemoryLimit() > 0){
+    if (size_t limit = hook.getDevice().getDeviceMemoryLimit();limit > 0){
         *total = limit;
         *free = limit - hook.getDevice().getDeviceMemoryUsage();
         return CUDA_SUCCESS;

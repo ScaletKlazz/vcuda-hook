@@ -1,5 +1,4 @@
 #include "device/device.hpp"
-#include <utility>
 #include "spdlog/spdlog.h"
 #include "util/logger.hpp"
 #include "util/config.hpp"
@@ -15,11 +14,8 @@ namespace {
 }
 
 // Device constructor
-Device::Device()
+Device::Device() :process_usage_(util::ProcessUsage::getInstance())
 { 
-    process_usage_ = ProcessUsage{};
-    device_memory_blocks_.resize(DEVICE_MAX_NUM);
-
     if (auto limit = util::Config::memoryLimitBytes();limit > 0) {
         device_memory_limit_bytes_ = limit;
     }
@@ -29,9 +25,10 @@ Device::Device()
     }
 }
 
-void Device::setDeviceId(int device_id) {
-    spdlog::info("Set device id to {}", device_id);
-    device_id_ = device_id;
+Device::~Device() {}
+
+void Device::setDeviceId(int idx) {
+    device_id_ = idx;
 }
 
 int Device::getDeviceId() {
@@ -41,65 +38,25 @@ int Device::getDeviceId() {
 
 // record allocation action
 void Device::recordAllocation(CUdeviceptr ptr, size_t size, int idx) {
-    std::vector<ProcessUsageListener> listeners;
-    ProcessUsage snapshot;
-
-    {
         std::lock_guard<std::mutex> lock(mutex_);
-
-        process_usage_.devices[idx].usage += size;
-        process_usage_.timestamp = std::time(nullptr);
         device_memory_blocks_[idx][ptr] = MemoryBlock{ptr, size};
-
-        snapshot = process_usage_;
-        listeners = process_usage_listeners_;
-    }
-
-    for (auto& listener : listeners) {
-        if (listener) {
-            listener(snapshot);
-        }
-    }
+        process_usage_.updateUsage(idx, size);
 }
 
 // record free action
 void Device::recordFree(CUdeviceptr ptr, int idx) {
-    std::vector<ProcessUsageListener> listeners;
-    ProcessUsage snapshot;
-    bool updated = false;
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
 
-        if (idx >= 0 &&
-            idx < static_cast<int>(device_memory_blocks_.size()) &&
-            idx < static_cast<int>(process_usage_.devices.size())) {
-            auto& memory_blocks = device_memory_blocks_[idx];
+    if (idx >= 0 &&
+        idx < static_cast<int>(device_memory_blocks_.size())) {
+        auto& memory_blocks = device_memory_blocks_[idx];
 
-            if (const auto it = memory_blocks.find(ptr); it != memory_blocks.end()) {
-                const size_t freed_size = it->second.size;
-                memory_blocks.erase(it);
+        if (const auto it = memory_blocks.find(ptr); it != memory_blocks.end()) {
+            const size_t freed_size = it->second.size;
+            memory_blocks.erase(it);
 
-                process_usage_.process_id = getpid();
-                auto& usage = process_usage_.devices[idx];
-                if (usage.usage >= freed_size) {
-                    usage.usage -= freed_size;
-                } else {
-                    usage.usage = 0;
-                }
-
-                process_usage_.timestamp = std::time(nullptr);
-                snapshot = process_usage_;
-                listeners = process_usage_listeners_;
-                updated = true;
-            }
-        }
-    }
-
-    if (updated) {
-        for (auto& listener : listeners) {
-            if (listener) {
-                listener(snapshot);
-            }
+            // update memory usage
+            process_usage_.updateUsage(idx, -freed_size);
         }
     }
 }
@@ -113,7 +70,7 @@ size_t Device::getDeviceMemoryUsage(int idx) const {
     }
 
     if (idx >= 0 && idx < static_cast<int>(process_usage_.devices.size())) {
-        return process_usage_.getUsage(idx);
+        return Client::getInstance().get_device_process_metric_data(idx);
     }
 
     return 0;
@@ -131,29 +88,15 @@ void Device::updateMemoryUsage(const enum MemOperation operation, CUdeviceptr pt
     }
 
     if (operation == MemAlloc) {
-        return recordAllocation(ptr, size, idx);
+        recordAllocation(ptr, size, idx);
     } else {
-        return recordFree(ptr, idx);
+        recordFree(ptr, idx);
     }
+
+    Client::getInstance().update_process_metric_data(process_usage_);
 }
 
 // get device name
 std::string Device::getDeviceName() const {
     return device_name_;
-}
-
-void Device::registerProcessUsageObserver(ProcessUsageListener listener) {
-    ProcessUsage snapshot;
-    ProcessUsageListener callback;
-
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        process_usage_listeners_.push_back(std::move(listener));
-        snapshot = process_usage_;
-        callback = process_usage_listeners_.back();
-    }
-
-    if (callback) {
-        callback(snapshot);
-    }
 }
