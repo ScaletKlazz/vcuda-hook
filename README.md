@@ -1,4 +1,6 @@
 # vcuda-hook
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FScaletKlazz%2Fvcuda-hook.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FScaletKlazz%2Fvcuda-hook?ref=badge_shield)
+
 
 a transparent-level library overhook lib-cuda and lib-nvidia-ml
 
@@ -71,3 +73,6 @@ This project aims to provide a simple and easy-to-use GPU virtualization solutio
 
 ## Contributing
 [Code of conduct](/CODE_OF_CONDUCT.md)
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FScaletKlazz%2Fvcuda-hook.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FScaletKlazz%2Fvcuda-hook?ref=badge_large)
