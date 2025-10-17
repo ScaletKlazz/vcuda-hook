@@ -15,6 +15,7 @@ extern "C" {
 
 #define NO_HOOK reinterpret_cast<void*>(static_cast<intptr_t>(-1))
 #define HOOK_SYMBOL(x) reinterpret_cast<void*>(x)
+#define EXPORTED_FUNC __attribute__((visibility("default")))
 
 template<typename Derived>
 class BaseHook {

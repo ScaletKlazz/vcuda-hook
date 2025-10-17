@@ -59,20 +59,21 @@ namespace {
     }
 }
 
+#pragma GCC visibility push(default)
+
 CUresult cuGetProcAddress(const char* symbol, void** pfn, int cudaVersion, cuuint64_t flags, CUdriverProcAddressQueryResult* symbolStatus) {
     CudaHook& hook = CudaHook::getInstance();
     if (!ensureCudaSymbol(hook.ori_cuGetProcAddress_v2, SYMBOL_STRING(cuGetProcAddress))) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
 
-    spdlog::trace("cuGetProcAddress: {}", symbol);
     if (std::strcmp(symbol, "cuGetProcAddress") == 0) {
         *pfn = HOOK_SYMBOL(&cuGetProcAddress);
         return CUDA_SUCCESS;
     }
 
-    CudaHook::HookFuncInfo hookInfo = CudaHook::getHookedSymbol(symbol);
-    if (hookInfo.hookedFunc) {
+    
+    if (CudaHook::HookFuncInfo hookInfo = CudaHook::getHookedSymbol(symbol);hookInfo.hookedFunc) {
         auto result = hook.ori_cuGetProcAddress_v2(symbol, pfn, cudaVersion, flags, symbolStatus);
         if (result != CUDA_SUCCESS) {
             return result;
@@ -121,9 +122,7 @@ CUresult cuMemAlloc(CUdeviceptr* dptr, size_t byteSize) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
 
-    auto limit = hook.getDevice().getDeviceMemoryLimit();
-    if(limit > 0){
-        spdlog::debug("Memory limit: {}", limit);
+    if(auto limit = hook.getDevice().getDeviceMemoryLimit();limit > 0){
         if(hook.getDevice().getDeviceMemoryUsage() + byteSize > limit){
             spdlog::error("Out of memory, trying to allocate {} bytes, current usage {}", byteSize, hook.getDevice().getDeviceMemoryUsage());
             return CUDA_ERROR_OUT_OF_MEMORY;
@@ -165,22 +164,12 @@ CUresult cuMemFree(CUdeviceptr dptr) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
 
-    int device_id = -1;
-    if (ensureCudaSymbol(hook.ori_cuPointerGetAttribute, SYMBOL_STRING(cuPointerGetAttribute))) {
-        const CUresult attr_result = hook.ori_cuPointerGetAttribute(&device_id, CU_POINTER_ATTRIBUTE_DEVICE_ORDINAL, dptr);
-        if (attr_result != CUDA_SUCCESS) {
-            logCudaError(hook, "cuPointerGetAttribute failed during cuMemFree", attr_result);
-        }
-    } else {
-        spdlog::warn("Unable to resolve cuPointerGetAttribute - skipping device attribution for free");
-    }
-
     const CUresult result = hook.ori_cuMemFree_v2(dptr);
     if (result != CUDA_SUCCESS) {
         logCudaError(hook, "cuMemFree failed", result);
     }
 
-    hook.getDevice().updateMemoryUsage(MemFree, dptr, 0, device_id);
+    hook.getDevice().updateMemoryUsage(MemFree, dptr);
 
     return result;
 }
@@ -229,15 +218,15 @@ CUresult cuCtxSetCurrent(CUcontext ctx) {
 CUresult cuMemGetInfo(size_t* free, size_t* total) {
     CudaHook& hook = CudaHook::getInstance();
 
-    if (size_t limit = hook.getDevice().getDeviceMemoryLimit();limit > 0){
-        *total = limit;
-        *free = limit - hook.getDevice().getDeviceMemoryUsage();
-        return CUDA_SUCCESS;
-    }
-
     if (!ensureCudaSymbol(hook.ori_cuMemGetInfo_v2, SYMBOL_STRING(cuMemGetInfo))) {
         spdlog::error("Unable to resolve original cuMemGetInfo");
         return CUDA_ERROR_NOT_INITIALIZED;
+    }
+
+    if (auto limit = hook.getDevice().getDeviceMemoryLimit(); limit > 0){
+        *total = limit;
+        *free = limit - hook.getDevice().getDeviceMemoryUsage();
+        return CUDA_SUCCESS;
     }
 
     const CUresult result = hook.ori_cuMemGetInfo_v2(free, total);
@@ -252,14 +241,14 @@ CUresult cuMemGetInfo(size_t* free, size_t* total) {
 CUresult cuDeviceTotalMem(size_t *bytes, CUdevice dev){
     CudaHook& hook = CudaHook::getInstance();
 
-    if (size_t limit = hook.getDevice().getDeviceMemoryLimit(int(dev)); limit > 0){
-        *bytes = limit;
-        return CUDA_SUCCESS;
-    }
-
     if (!ensureCudaSymbol(hook.ori_cuDeviceTotalMem_v2, SYMBOL_STRING(cuDeviceTotalMem))) {
         spdlog::error("Unable to resolve original cuDeviceTotalMem");
         return CUDA_ERROR_NOT_INITIALIZED;
+    }
+
+    if (auto limit = hook.getDevice().getDeviceMemoryLimit(int(dev)); limit > 0){
+        *bytes = limit;
+        return CUDA_SUCCESS;
     }
 
     const CUresult result = hook.ori_cuDeviceTotalMem_v2(bytes, dev);
@@ -270,3 +259,6 @@ CUresult cuDeviceTotalMem(size_t *bytes, CUdevice dev){
 
     return result;
 }
+
+
+#pragma GCC visibility pop

@@ -15,12 +15,16 @@ get_script_dir() {
 SCRIPT_DIR=$(get_script_dir)
 
 pushd "$SCRIPT_DIR/.."
+# submodule
 git submodule update --init --recursive
 rm -rf build;mkdir "build";
-rsync -avz ./* ./build  --exclude cmake-build-debug --exclude build --exclude tests --exclude utils
+rsync -avz ./* ./build  --exclude cmake-build-debug --exclude build --exclude utils
 cd build
-cmake . -DCUDAToolkit_ROOT=/usr/local/cuda/ -DCUDAToolkit_INCLUDE_DIR=/usr/local/cuda/include/ -DCMAKE_BUILD_TYPE=Release
+# build library
+cmake . -DCUDAToolkit_INCLUDE_DIR=/usr/local/cuda/include/ -DCMAKE_BUILD_TYPE=Release
 make -j $(nproc)
+# build test
+# nvcc tests/memory_alloc.cu -o output/alloc
 popd
 
 echo -e "Build Done/n"

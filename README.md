@@ -37,7 +37,7 @@ export VCUDA_MEMORY_LIMIT=(1024 * 1024 * 1024 * 10) // limit 10G
 your_application
 
 # or use docker
-docker run -it --gpus all --rm -v /path/to/libvcuda-hook.so:/usr/lib64/libvcuda-hook.so -e LD_PRELOAD=/usr/lib64/libvcuda-hook.so your_image
+docker run -it --gpus all --rm -v /path/to/libvcuda-hook.so:/usr/lib64/libvcuda-hook.so -e LD_PRELOAD=/usr/lib64/libvcuda-hook.so vllm/vllm-openai:latest bash
 ```
 
 # Features

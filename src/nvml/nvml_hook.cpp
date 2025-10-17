@@ -60,7 +60,7 @@ namespace {
 
 } // namespace
 
-
+#pragma GCC visibility push(default)
 nvmlReturn_t nvmlDeviceGetMemoryInfo(nvmlDevice_t device, nvmlMemory_t* memory){
     auto& hook = NvmlHook::getInstance();
 
@@ -131,3 +131,5 @@ nvmlReturn_t nvmlDeviceGetName(nvmlDevice_t device, char* name, unsigned int len
 
     return hook.ori_nvmlDeviceGetName(device, name, length);
 }
+
+#pragma GCC visibility pop

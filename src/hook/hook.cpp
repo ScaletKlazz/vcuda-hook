@@ -63,13 +63,13 @@ namespace {
 
 // dlsym
 // exported to external application
-__attribute__((visibility("default"))) void* dlsym(void* handle, const char* symbol){
+EXPORT_FUNC void* dlsym(void* handle, const char* symbol){
     if (!symbol) {
         return nullptr;
     }
     
     auto sym = real_dlsym(handle, symbol);
-    spdlog::trace("Dlsym {} {}", symbol, sym);
+    spdlog::trace("Dlsym {}", symbol);
 
     if (auto& hook = CudaHook::getInstance();matchSymbol(hook, symbol)){
         return tryHookSymbol(hook, symbol, sym);

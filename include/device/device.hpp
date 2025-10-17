@@ -17,6 +17,7 @@ public:
    ~Device();
 
     struct MemoryBlock {
+        int idx;
         CUdeviceptr ptr;
         size_t size;
     };
@@ -27,7 +28,7 @@ public:
 
     void recordAllocation(CUdeviceptr, size_t, int);
 
-    void recordFree(CUdeviceptr, int);
+    void recordFree(CUdeviceptr);
 
 	// get device memory usage
     size_t getDeviceMemoryUsage(int idx = DEVICE_INDEX_CURRENT) const;
@@ -50,7 +51,7 @@ private:
     size_t device_memory_limit_bytes_ = 0; // 0 means unlimited
     std::string device_name_ = ""; // device name 
     util::ProcessUsage& process_usage_;
-    std::array<std::map<CUdeviceptr, MemoryBlock>,DEVICE_MAX_NUM> device_memory_blocks_ {};
+    std::map<CUdeviceptr, MemoryBlock> device_memory_blocks_ {};
 };
 
 

@@ -39,25 +39,20 @@ int Device::getDeviceId() {
 // record allocation action
 void Device::recordAllocation(CUdeviceptr ptr, size_t size, int idx) {
         std::lock_guard<std::mutex> lock(mutex_);
-        device_memory_blocks_[idx][ptr] = MemoryBlock{ptr, size};
+        device_memory_blocks_[ptr] = MemoryBlock{idx, ptr, size};
         process_usage_.updateUsage(idx, size);
 }
 
 // record free action
-void Device::recordFree(CUdeviceptr ptr, int idx) {
+void Device::recordFree(CUdeviceptr ptr) {
     std::lock_guard<std::mutex> lock(mutex_);
+    if (const auto it = device_memory_blocks_.find(ptr); it != device_memory_blocks_.end()) {
+        const size_t freed_size = it->second.size;
+        const int idx = it->second.idx;
+        device_memory_blocks_.erase(it);
 
-    if (idx >= 0 &&
-        idx < static_cast<int>(device_memory_blocks_.size())) {
-        auto& memory_blocks = device_memory_blocks_[idx];
-
-        if (const auto it = memory_blocks.find(ptr); it != memory_blocks.end()) {
-            const size_t freed_size = it->second.size;
-            memory_blocks.erase(it);
-
-            // update memory usage
-            process_usage_.updateUsage(idx, -freed_size);
-        }
+        // update memory usage
+        process_usage_.updateUsage(idx, -freed_size);
     }
 }
 
@@ -90,7 +85,7 @@ void Device::updateMemoryUsage(const enum MemOperation operation, CUdeviceptr pt
     if (operation == MemAlloc) {
         recordAllocation(ptr, size, idx);
     } else {
-        recordFree(ptr, idx);
+        recordFree(ptr);
     }
 
     Client::getInstance().update_process_metric_data(process_usage_);
