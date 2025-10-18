@@ -24,6 +24,7 @@ public:
     ORI_FUNC(nvmlDeviceGetMemoryInfo, nvmlReturn_t, nvmlDevice_t, nvmlMemory_t*);
     ORI_FUNC(nvmlDeviceGetMemoryInfo_v2, nvmlReturn_t, nvmlDevice_t, nvmlMemory_v2_t*);
     ORI_FUNC(nvmlDeviceGetName, nvmlReturn_t, nvmlDevice_t, char*, unsigned int);
+    ORI_FUNC(nvmlDeviceGetIndex, nvmlReturn_t, nvmlDevice_t, unsigned int *);
 
     
     static const std::unordered_map<std::string, HookFuncInfo>& getHookMap() {
@@ -32,6 +33,7 @@ public:
             ADD_NVML_SYMBOL(nvmlDeviceGetMemoryInfo, HOOK_SYMBOL(&nvmlDeviceGetMemoryInfo)),
             ADD_NVML_SYMBOL(nvmlDeviceGetMemoryInfo_v2, HOOK_SYMBOL(&nvmlDeviceGetMemoryInfo_v2)),
             ADD_NVML_SYMBOL(nvmlDeviceGetName, HOOK_SYMBOL(&nvmlDeviceGetName)),
+            ADD_NVML_SYMBOL(nvmlDeviceGetIndex, NO_HOOK),
         };
         return map;
     }

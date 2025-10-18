@@ -45,7 +45,6 @@ public:
     ORI_FUNC(cuMemFree, CUresult, CUdeviceptr);
     ORI_FUNC(cuCtxGetDevice, CUresult, CUdevice*);
     ORI_FUNC(cuCtxSetCurrent, CUresult, CUcontext);
-    ORI_FUNC(cuPointerGetAttribute, CUresult, void*, CUpointer_attribute, CUdeviceptr);
     ORI_FUNC(cuMemGetInfo, CUresult, size_t*, size_t*);
     ORI_FUNC(cuDeviceTotalMem, CUresult, size_t*, CUdevice);
 
@@ -60,7 +59,6 @@ public:
             MULTI_CUDA_SYMBOL(cuMemFree, HOOK_SYMBOL(&cuMemFree)),
             ADD_CUDA_SYMBOL(cuCtxGetDevice, HOOK_SYMBOL(&cuCtxGetDevice)),
             ADD_CUDA_SYMBOL(cuCtxSetCurrent, HOOK_SYMBOL(&cuCtxSetCurrent)),
-            ADD_CUDA_SYMBOL(cuPointerGetAttribute, NO_HOOK),
             MULTI_CUDA_SYMBOL(cuMemGetInfo, HOOK_SYMBOL(&cuMemGetInfo)),
             MULTI_CUDA_SYMBOL(cuDeviceTotalMem, HOOK_SYMBOL(&cuDeviceTotalMem)),
         };

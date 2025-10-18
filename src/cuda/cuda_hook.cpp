@@ -135,11 +135,6 @@ CUresult cuMemAlloc(CUdeviceptr* dptr, size_t byteSize) {
         return result;
     }
 
-    if (!ensureCudaSymbol(hook.ori_cuPointerGetAttribute, SYMBOL_STRING(cuPointerGetAttribute))) {
-        spdlog::warn("Unable to resolve cuPointerGetAttribute - skipping device attribution for allocation");
-        return result;
-    }
-
     hook.getDevice().updateMemoryUsage(MemAlloc,*dptr,byteSize);
 
     return result;

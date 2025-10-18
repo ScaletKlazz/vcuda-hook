@@ -63,7 +63,7 @@ namespace {
 
 // dlsym
 // exported to external application
-EXPORT_FUNC void* dlsym(void* handle, const char* symbol){
+EXPORTED_FUNC void* dlsym(void* handle, const char* symbol){
     if (!symbol) {
         return nullptr;
     }

@@ -64,9 +64,21 @@ namespace {
 nvmlReturn_t nvmlDeviceGetMemoryInfo(nvmlDevice_t device, nvmlMemory_t* memory){
     auto& hook = NvmlHook::getInstance();
 
+    if (!ensureNvmlSymbol(hook.ori_nvmlDeviceGetIndex, SYMBOL_STRING(nvmlDeviceGetIndex))) {
+        spdlog::error("Unable to resolve original nvmlDeviceGetIndex");
+        return NVML_ERROR_UNINITIALIZED ;
+    }
+
+    uint index = 0;
+    auto result = hook.ori_nvmlDeviceGetIndex(device, &index);
+    if (result != NVML_SUCCESS) {
+        logNvmlError(hook, "nvmlDeviceGetIndex failed", result);
+        return result;
+    }
+
     if (size_t limit = hook.getDevice().getDeviceMemoryLimit();limit > 0){
         memory->total = limit;
-        memory->used = hook.getDevice().getDeviceMemoryUsage();
+        memory->used = hook.getDevice().getDeviceMemoryUsage(int(index));
         memory->free = memory->total - memory->used;
         spdlog::trace("[nvmlDeviceGetMemoryInfo] Total: {}, Used: {}, Free: {}",
                       memory->total,
@@ -80,7 +92,7 @@ nvmlReturn_t nvmlDeviceGetMemoryInfo(nvmlDevice_t device, nvmlMemory_t* memory){
         return NVML_ERROR_UNINITIALIZED ;
     }
 
-    const auto result = hook.ori_nvmlDeviceGetMemoryInfo(device, memory);
+    result = hook.ori_nvmlDeviceGetMemoryInfo(device, memory);
     if (result != NVML_SUCCESS) {
         logNvmlError(hook, "nvmlDeviceGetMemoryInfo failed", result);
         return result;
@@ -91,9 +103,21 @@ nvmlReturn_t nvmlDeviceGetMemoryInfo(nvmlDevice_t device, nvmlMemory_t* memory){
 nvmlReturn_t nvmlDeviceGetMemoryInfo_v2(nvmlDevice_t device, nvmlMemory_v2_t* memory){
     auto& hook = NvmlHook::getInstance();
 
+    if (!ensureNvmlSymbol(hook.ori_nvmlDeviceGetIndex, SYMBOL_STRING(nvmlDeviceGetIndex))) {
+        spdlog::error("Unable to resolve original nvmlDeviceGetIndex");
+        return NVML_ERROR_UNINITIALIZED ;
+    }
+
+    uint index = 0;
+    auto result = hook.ori_nvmlDeviceGetIndex(device, &index);
+    if (result != NVML_SUCCESS) {
+        logNvmlError(hook, "nvmlDeviceGetIndex failed", result);
+        return result;
+    }
+
     if (size_t limit = hook.getDevice().getDeviceMemoryLimit();limit > 0){
         memory->total = limit;
-        memory->used = hook.getDevice().getDeviceMemoryUsage();
+        memory->used = hook.getDevice().getDeviceMemoryUsage(int(index));
         memory->free = memory->total - memory->used;
         spdlog::trace("[nvmlDeviceGetMemoryInfo_v2] Total: {}, Used: {}, Free: {}",
                       memory->total,
@@ -107,7 +131,7 @@ nvmlReturn_t nvmlDeviceGetMemoryInfo_v2(nvmlDevice_t device, nvmlMemory_v2_t* me
         return NVML_ERROR_UNINITIALIZED ;
     }
 
-    const auto result = hook.ori_nvmlDeviceGetMemoryInfo_v2(device, memory);
+    result = hook.ori_nvmlDeviceGetMemoryInfo_v2(device, memory);
     if (result != NVML_SUCCESS) {
         logNvmlError(hook, "nvmlDeviceGetMemoryInfo_v2 failed", result);
         return result;
