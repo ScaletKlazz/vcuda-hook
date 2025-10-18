@@ -5,7 +5,10 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-    
+
+env:
+  BUILD_TYPE: Release
+
 jobs:
   analyze:
     runs-on: ubuntu-22.04
@@ -19,9 +22,13 @@ jobs:
         language: [ 'cpp' ]
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
       - uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
+
       - name: Set up CUDA
         # Install CUDA toolkit
         run: |
@@ -32,7 +39,8 @@ jobs:
 
             # Add CUDA to ENV
             echo "/usr/local/cuda/bin" >> $GITHUB_PATH
-            echo "LD_LIBRARY_PATH=/usr/local/cuda-12.6/lib64:${LD_LIBRARY_PATH}" >> $GITHUB_ENV    
+            echo "LD_LIBRARY_PATH=/usr/local/cuda-12.6/lib64:${LD_LIBRARY_PATH}" >> $GITHUB_ENV 
+
       - name: Configure CMake
         # Configure CMake with Unix Makefiles generator
         run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCUDAToolkit_INCLUDE_DIR=/usr/local/cuda/include/ -G "Unix Makefiles"
