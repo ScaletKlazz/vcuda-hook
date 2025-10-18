@@ -140,9 +140,14 @@ void Client::update_process_metric_data(util::ProcessUsage& usage){
         pthread_mutex_consistent(&process_metric_data_->lock);
     }
 
+    // update current process id
+    if (usage.process_id == 0) {
+        usage.process_id = getpid();
+    }
+
     int self_slot = -1;
     int free_slot = -1;
-
+    // find usage slot
     for (int i = 0; i < MAX_PROCESS_NUM; ++i) {
         auto& entry = process_metric_data_->usage[i];
 
@@ -169,14 +174,16 @@ void Client::update_process_metric_data(util::ProcessUsage& usage){
         }
     }
 
-    
+    // update slot process usage
+    if (self_slot != -1 || free_slot != -1) {
+        if (self_slot != -1){
+            free_slot = self_slot;
+        }
 
-    if (self_slot == -1 && free_slot != -1) {
         auto& entry = process_metric_data_->usage[free_slot];
         entry.process_id = usage.process_id;
         entry.devices = usage.devices;
         entry.timestamp = usage.timestamp;
-        self_slot = free_slot;
     }
 
     pthread_mutex_unlock(&process_metric_data_->lock);

@@ -55,7 +55,7 @@ namespace util{
         }
 
         // constructor
-        ProcessUsage() : process_id(getpid()), timestamp(time(nullptr)){
+        ProcessUsage() : process_id(0), timestamp(time(nullptr)){
             for (int i = 0; i < DEVICE_MAX_NUM; i++) {
                 devices[i].device_id = i;
                 devices[i].gpu_usage = 0;

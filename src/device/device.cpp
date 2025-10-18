@@ -41,7 +41,6 @@ void Device::recordAllocation(CUdeviceptr ptr, size_t size, int idx) {
         std::lock_guard<std::mutex> lock(mutex_);
         device_memory_blocks_[ptr] = MemoryBlock{idx, ptr, size};
 
-        spdlog::debug("update device {} usage {}", idx, size);
         process_usage_.updateUsage(idx, size);
 }
 
@@ -53,7 +52,6 @@ void Device::recordFree(CUdeviceptr ptr) {
         const int idx = it->second.idx;
         device_memory_blocks_.erase(it);
 
-        spdlog::debug("update device {} usage {}", idx, -freed_size);
         // update memory usage
         process_usage_.updateUsage(idx, -freed_size);
     }
