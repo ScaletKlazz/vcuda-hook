@@ -1,6 +1,6 @@
 # vcuda-hook
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FScaletKlazz%2Fvcuda-hook.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FScaletKlazz%2Fvcuda-hook?ref=badge_shield)
-![CodeQL](https://github.com/ScaletKlazz/vcuda-hook/actions/workflows/codeql.yml/badge.svg)
+![CodeQL](https://github.com/ScaletKlazz/vcuda-hook/actions/workflows/codeQL.yml/badge.svg)
 ![Build](https://github.com/ScaletKlazz/vcuda-hook/actions/workflows/cmake-base-validation.yml/badge.svg)
 ![Issues](https://img.shields.io/github/issues/ScaletKlazz/vcuda-hook)
 ![Release](https://img.shields.io/github/v/release/ScaletKlazz/vcuda-hook?display_name=tag)
