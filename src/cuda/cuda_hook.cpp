@@ -255,5 +255,64 @@ CUresult cuDeviceTotalMem(size_t *bytes, CUdevice dev){
     return result;
 }
 
+CUresult cuMemCreate(CUmemGenericAllocationHandle* handle, size_t size, const CUmemAllocationProp* prop, unsigned long long flags){
+    CudaHook& hook = CudaHook::getInstance();
+
+    if (!ensureCudaSymbol(hook.ori_cuMemCreate, SYMBOL_STRING(cuMemCreate))) {
+        spdlog::error("Unable to resolve original cuMemCreate");
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+
+    if(!prop){
+        return CUDA_ERROR_INVALID_VALUE;
+    }
+
+    CUresult result = CUDA_SUCCESS;
+    // if not alloc from device 
+    if(prop->location.type != CU_MEM_LOCATION_TYPE_DEVICE){
+        CUresult result = hook.ori_cuMemCreate(handle, size, prop, flags);
+        if (result != CUDA_SUCCESS) {
+            logCudaError(hook, "cuMemCreate failed", result);
+        }
+
+        return result;
+    }
+
+    int idx = prop->location.id;
+    if(auto limit = hook.getDevice().getDeviceMemoryLimit(idx);limit > 0){
+        if(hook.getDevice().getDeviceMemoryUsage(idx) + size > limit){
+            spdlog::error("VMM Out of memory, trying to allocate {} bytes, current usage {}", size, hook.getDevice().getDeviceMemoryUsage(idx));
+            return CUDA_ERROR_OUT_OF_MEMORY;
+        }
+    }
+
+    result = hook.ori_cuMemCreate(handle, size, prop, flags);
+    if (result != CUDA_SUCCESS) {
+        logCudaError(hook, "cuMemCreate failed", result);
+        return result;
+    }
+
+    hook.getDevice().updateMemoryUsage(MemAlloc, reinterpret_cast<CUdeviceptr>(*handle), size, idx);
+    return result;
+}
+
+CUresult cuMemRelease(CUmemGenericAllocationHandle handle){
+    CudaHook& hook = CudaHook::getInstance();
+
+    if (!ensureCudaSymbol(hook.ori_cuMemRelease, SYMBOL_STRING(cuMemRelease))) {
+        spdlog::error("Unable to resolve original cuMemRelease");
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+
+    CUresult result = hook.ori_cuMemRelease(handle);
+    if (result != CUDA_SUCCESS) {
+        logCudaError(hook, "cuMemRelease failed", result);
+        return result;
+    }
+
+    hook.getDevice().updateMemoryUsage(MemFree, reinterpret_cast<CUdeviceptr>(handle));
+    return result;
+}
+
 
 #pragma GCC visibility pop

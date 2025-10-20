@@ -1,6 +1,5 @@
 #ifndef CUDA_HOOK_DEFINE
 #define CUDA_HOOK_DEFINE
-
 #include <cuda.h>
 #include "hook/hook.hpp"
 #include "client/client.hpp"
@@ -47,6 +46,8 @@ public:
     ORI_FUNC(cuCtxSetCurrent, CUresult, CUcontext);
     ORI_FUNC(cuMemGetInfo, CUresult, size_t*, size_t*);
     ORI_FUNC(cuDeviceTotalMem, CUresult, size_t*, CUdevice);
+    ORI_FUNC(cuMemCreate, CUresult, CUmemGenericAllocationHandle*, size_t, const CUmemAllocationProp*, unsigned long long);
+    ORI_FUNC(cuMemRelease, CUresult, CUmemGenericAllocationHandle);
 
     static const std::unordered_map<std::string, HookFuncInfo>& getHookMap() {
         static const std::unordered_map<std::string, HookFuncInfo> map = {
@@ -61,6 +62,8 @@ public:
             ADD_CUDA_SYMBOL(cuCtxSetCurrent, HOOK_SYMBOL(&cuCtxSetCurrent)),
             MULTI_CUDA_SYMBOL(cuMemGetInfo, HOOK_SYMBOL(&cuMemGetInfo)),
             MULTI_CUDA_SYMBOL(cuDeviceTotalMem, HOOK_SYMBOL(&cuDeviceTotalMem)),
+            ADD_CUDA_SYMBOL(cuMemCreate, HOOK_SYMBOL(&cuMemCreate)),
+            ADD_CUDA_SYMBOL(cuMemRelease, HOOK_SYMBOL(&cuMemRelease)),
         };
         return map;
     }

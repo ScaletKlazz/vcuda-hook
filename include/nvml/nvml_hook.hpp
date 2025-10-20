@@ -26,7 +26,6 @@ public:
     ORI_FUNC(nvmlDeviceGetName, nvmlReturn_t, nvmlDevice_t, char*, unsigned int);
     ORI_FUNC(nvmlDeviceGetIndex, nvmlReturn_t, nvmlDevice_t, unsigned int *);
 
-    
     static const std::unordered_map<std::string, HookFuncInfo>& getHookMap() {
         static const std::unordered_map<std::string, HookFuncInfo> map = {
             ADD_NVML_SYMBOL(nvmlErrorString, NO_HOOK),
