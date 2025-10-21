@@ -46,8 +46,13 @@ public:
     ORI_FUNC(cuCtxSetCurrent, CUresult, CUcontext);
     ORI_FUNC(cuMemGetInfo, CUresult, size_t*, size_t*);
     ORI_FUNC(cuDeviceTotalMem, CUresult, size_t*, CUdevice);
+    ORI_FUNC(cuMemGetAllocationGranularity, CUresult, size_t*, const CUmemAllocationProp*, CUmemAllocationGranularity_flags);
+    ORI_FUNC(cuMemAddressReserve, CUresult, CUdeviceptr*, size_t, size_t, CUdeviceptr, unsigned long long);
+    ORI_FUNC(cuMemAddressFree, CUresult, CUdeviceptr, size_t);
     ORI_FUNC(cuMemCreate, CUresult, CUmemGenericAllocationHandle*, size_t, const CUmemAllocationProp*, unsigned long long);
     ORI_FUNC(cuMemRelease, CUresult, CUmemGenericAllocationHandle);
+    ORI_FUNC(cuMemMap, CUresult, CUdeviceptr, size_t, size_t, CUmemGenericAllocationHandle, unsigned long long);
+    ORI_FUNC(cuMemUnmap,CUresult, CUdeviceptr, size_t);
 
     static const std::unordered_map<std::string, HookFuncInfo>& getHookMap() {
         static const std::unordered_map<std::string, HookFuncInfo> map = {
@@ -62,8 +67,13 @@ public:
             ADD_CUDA_SYMBOL(cuCtxSetCurrent, HOOK_SYMBOL(&cuCtxSetCurrent)),
             MULTI_CUDA_SYMBOL(cuMemGetInfo, HOOK_SYMBOL(&cuMemGetInfo)),
             MULTI_CUDA_SYMBOL(cuDeviceTotalMem, HOOK_SYMBOL(&cuDeviceTotalMem)),
+            ADD_CUDA_SYMBOL(cuMemGetAllocationGranularity, NO_HOOK),
+            ADD_CUDA_SYMBOL(cuMemAddressReserve, NO_HOOK),
+            ADD_CUDA_SYMBOL(cuMemAddressFree, NO_HOOK),
             ADD_CUDA_SYMBOL(cuMemCreate, HOOK_SYMBOL(&cuMemCreate)),
             ADD_CUDA_SYMBOL(cuMemRelease, HOOK_SYMBOL(&cuMemRelease)),
+            ADD_CUDA_SYMBOL(cuMemMap, NO_HOOK),
+            ADD_CUDA_SYMBOL(cuMemUnmap, NO_HOOK),
         };
         return map;
     }

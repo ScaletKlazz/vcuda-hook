@@ -98,7 +98,7 @@ CUresult cuGetProcAddress(const char* symbol, void** pfn, int cudaVersion, cuuin
     return CUDA_ERROR_NOT_INITIALIZED;
 }
 
-CUresult cuInit(unsigned int Flags) {
+CUresult cuInit(unsigned int flags) {
     CudaHook& hook = CudaHook::getInstance();
 
     if (!ensureCudaSymbol(hook.ori_cuInit, SYMBOL_STRING(cuInit))) {
@@ -106,7 +106,7 @@ CUresult cuInit(unsigned int Flags) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
 
-    const CUresult result = hook.ori_cuInit(Flags);
+    const CUresult result = hook.ori_cuInit(flags);
     if (result != CUDA_SUCCESS) {
         logCudaError(hook, "cuInit failed", result);
     }
@@ -177,7 +177,15 @@ CUresult cuCtxGetDevice(CUdevice* device) {
         return CUDA_ERROR_NOT_INITIALIZED;
     }
 
-    return hook.ori_cuCtxGetDevice(device);
+    CUresult result = hook.ori_cuCtxGetDevice(device);
+    if (result != CUDA_SUCCESS) {
+        logCudaError(hook, "cuCtxGetDevice failed", result);
+        return result;
+    }
+
+    hook.getDevice().setDeviceId(int(*device));
+
+    return result;
 }
 
 CUresult cuCtxSetCurrent(CUcontext ctx) {
