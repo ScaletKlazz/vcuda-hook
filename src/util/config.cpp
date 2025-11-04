@@ -1,6 +1,10 @@
 #include "util/config.hpp"
 
+#include <algorithm>
+#include <cerrno>
 #include <climits>
+#include <cstdlib>
+#include <limits>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -11,7 +15,9 @@ namespace util {
 namespace {
 
 constexpr const char* kMemoryLimitEnv = "VCUDA_MEMORY_LIMIT";
+constexpr const char* kMemoryOverSubRatioEnv = "VCUDA_OVER_SUB_RATIO";
 constexpr const char* kDeviceNameEnv = "VCUDA_DEVICE_NAME";
+
 constexpr const char* kConfigFilePath = "/etc/vcuda/config.yaml";
 
 struct FileConfig {
@@ -141,6 +147,36 @@ std::size_t parseByteSizeInternal(const std::string& value) {
     return multiplyWithOverflowCheck(baseValue, multiplier);
 }
 
+double parseRatioInternal(const std::string& value){
+    auto trimmedValue = trim(value);
+    if (trimmedValue.empty()) {
+        return 0.0;
+    }
+
+    bool isPercent = false;
+    if (!trimmedValue.empty() && trimmedValue.back() == '%') {
+        isPercent = true;
+        trimmedValue = trim(trimmedValue.substr(0, trimmedValue.size() - 1));
+        if (trimmedValue.empty()) {
+            return 0.0;
+        }
+    }
+
+    char* end = nullptr;
+    errno = 0;
+    const double parsed = std::strtod(trimmedValue.c_str(), &end);
+
+    if (errno == ERANGE || end == trimmedValue.c_str() || *end != '\0') {
+        return 0.0;
+    }
+
+    if (parsed < 0.0) {
+        return 0.0;
+    }
+
+    return isPercent ? parsed / 100.0 : parsed;
+}
+
 FileConfig loadConfigFile() {
     FileConfig config;
 
@@ -232,6 +268,15 @@ std::string Config::targetDeviceName() {
     return getEnv(kDeviceNameEnv);
 }
 
+double Config::overSubRatio(){
+    auto raw = getEnv(kMemoryOverSubRatioEnv);
+    if (size(raw) == 0) {
+        return 0.0;
+    }
+
+    return parseRatio(raw);
+}
+
 std::string Config::getEnv(const char* name) {
     if (!name) {
         return "";
@@ -248,6 +293,9 @@ std::size_t Config::parseByteSize(const std::string& value) {
     return parseByteSizeInternal(value);
 }
 
-} // namespace util
+double Config::parseRatio(const std::string& value){
+    return parseRatioInternal(value);
+}
 
+} // namespace util
 

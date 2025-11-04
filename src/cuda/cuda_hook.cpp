@@ -61,6 +61,7 @@ namespace {
 
 #pragma GCC visibility push(default)
 
+// cuGetProcAddress
 CUresult cuGetProcAddress(const char* symbol, void** pfn, int cudaVersion, cuuint64_t flags, CUdriverProcAddressQueryResult* symbolStatus) {
     CudaHook& hook = CudaHook::getInstance();
     if (!ensureCudaSymbol(hook.ori_cuGetProcAddress_v2, SYMBOL_STRING(cuGetProcAddress))) {
@@ -98,6 +99,7 @@ CUresult cuGetProcAddress(const char* symbol, void** pfn, int cudaVersion, cuuin
     return CUDA_ERROR_NOT_INITIALIZED;
 }
 
+// cuInit
 CUresult cuInit(unsigned int flags) {
     CudaHook& hook = CudaHook::getInstance();
 
@@ -114,6 +116,7 @@ CUresult cuInit(unsigned int flags) {
     return result;
 }
 
+// cuMemAlloc
 CUresult cuMemAlloc(CUdeviceptr* dptr, size_t byteSize) {
     CudaHook& hook = CudaHook::getInstance();
 
@@ -140,17 +143,8 @@ CUresult cuMemAlloc(CUdeviceptr* dptr, size_t byteSize) {
     return result;
 }
 
-CUresult cuDeviceGet(CUdevice* device, int ordinal) {
-    CudaHook& hook = CudaHook::getInstance();
 
-    if (!ensureCudaSymbol(hook.ori_cuDeviceGet, SYMBOL_STRING(cuDeviceGet))) {
-        spdlog::error("Unable to resolve original cuDeviceGet");
-        return CUDA_ERROR_NOT_INITIALIZED;
-    }
-
-    return hook.ori_cuDeviceGet(device, ordinal);
-}
-
+// cuMemFree
 CUresult cuMemFree(CUdeviceptr dptr) {
     CudaHook& hook = CudaHook::getInstance();
 
@@ -169,6 +163,76 @@ CUresult cuMemFree(CUdeviceptr dptr) {
     return result;
 }
 
+// cuMemAllocPitch
+CUresult cuMemAllocPitch(CUdeviceptr *dptr, size_t *pPitch, size_t WidthInBytes, size_t Height, size_t Element) { 
+    CudaHook& hook = CudaHook::getInstance();
+
+    if (!ensureCudaSymbol(hook.ori_cuMemAllocPitch_v2, SYMBOL_STRING(cuMemAllocPitch))) {
+        spdlog::error("Unable to resolve original cuMemAllocPitch");
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+
+    size_t guess_pitch = (((WidthInBytes - 1) / Element) + 1) * Element;
+    size_t byteSize = guess_pitch * Height;
+
+    if(auto limit = hook.getDevice().getDeviceMemoryLimit();limit > 0){
+        if(hook.getDevice().getDeviceMemoryUsage() + byteSize > limit){
+            spdlog::error("Out of memory, trying to allocate {} bytes, current usage {}", byteSize, hook.getDevice().getDeviceMemoryUsage());
+            return CUDA_ERROR_OUT_OF_MEMORY;
+        }
+    }
+
+    const CUresult result = hook.ori_cuMemAllocPitch_v2(dptr, pPitch, WidthInBytes, Height, Element);
+    if (result != CUDA_SUCCESS) {
+        logCudaError(hook, "cuMemAllocPitch failed", result);
+        return result;
+    }
+
+    hook.getDevice().updateMemoryUsage(MemAlloc,*dptr,byteSize);
+
+    return result;
+}
+
+// cuMemAllocManaged
+CUresult cuMemAllocManaged(CUdeviceptr* dptr, size_t byteSize, unsigned int flags) {
+    CudaHook& hook = CudaHook::getInstance();
+
+    if (!ensureCudaSymbol(hook.ori_cuMemAllocManaged, SYMBOL_STRING(cuMemAllocManaged))) {
+        spdlog::error("Unable to resolve original cuMemAllocManaged");
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+
+    if(auto limit = hook.getDevice().getDeviceMemoryLimit();limit > 0){
+        if(hook.getDevice().getDeviceMemoryUsage() + byteSize > limit){
+            spdlog::error("Out of memory, trying to allocate {} bytes, current usage {}", byteSize, hook.getDevice().getDeviceMemoryUsage());
+            return CUDA_ERROR_OUT_OF_MEMORY;
+        }
+    }
+
+    const CUresult result = hook.ori_cuMemAllocManaged(dptr, byteSize, flags);
+    if (result != CUDA_SUCCESS) {
+        logCudaError(hook, "cuMemAllocManaged failed", result);
+        return result;
+    }
+
+    hook.getDevice().updateMemoryUsage(MemAlloc,*dptr,byteSize);
+
+    return result;
+}
+
+// cuDeviceGet
+CUresult cuDeviceGet(CUdevice* device, int ordinal) {
+    CudaHook& hook = CudaHook::getInstance();
+
+    if (!ensureCudaSymbol(hook.ori_cuDeviceGet, SYMBOL_STRING(cuDeviceGet))) {
+        spdlog::error("Unable to resolve original cuDeviceGet");
+        return CUDA_ERROR_NOT_INITIALIZED;
+    }
+
+    return hook.ori_cuDeviceGet(device, ordinal);
+}
+
+// cuCtxGetDevice
 CUresult cuCtxGetDevice(CUdevice* device) {
     CudaHook& hook = CudaHook::getInstance();
 
@@ -188,6 +252,7 @@ CUresult cuCtxGetDevice(CUdevice* device) {
     return result;
 }
 
+// cuCtxSetCurrent
 CUresult cuCtxSetCurrent(CUcontext ctx) {
     CudaHook& hook = CudaHook::getInstance();
 
@@ -218,6 +283,8 @@ CUresult cuCtxSetCurrent(CUcontext ctx) {
 
     return result;
 }
+
+// cuMemGetInfo
 CUresult cuMemGetInfo(size_t* free, size_t* total) {
     CudaHook& hook = CudaHook::getInstance();
 
@@ -227,6 +294,10 @@ CUresult cuMemGetInfo(size_t* free, size_t* total) {
     }
 
     if (auto limit = hook.getDevice().getDeviceMemoryLimit(); limit > 0){
+        if (auto ratio = hook.getDevice().getDeviceOverSubRatio(); ratio > 0){
+            limit = (1 + ratio) * limit;
+        }
+
         *total = limit;
         *free = limit - hook.getDevice().getDeviceMemoryUsage();
         return CUDA_SUCCESS;
@@ -241,6 +312,7 @@ CUresult cuMemGetInfo(size_t* free, size_t* total) {
     return result;
 }
 
+// cuDeviceTotalMem
 CUresult cuDeviceTotalMem(size_t *bytes, CUdevice dev){
     CudaHook& hook = CudaHook::getInstance();
 
@@ -250,6 +322,10 @@ CUresult cuDeviceTotalMem(size_t *bytes, CUdevice dev){
     }
 
     if (auto limit = hook.getDevice().getDeviceMemoryLimit(int(dev)); limit > 0){
+        if (auto ratio = hook.getDevice().getDeviceOverSubRatio(); ratio > 0){
+            limit = (1 + ratio) * limit;
+        }
+        
         *bytes = limit;
         return CUDA_SUCCESS;
     }
@@ -263,6 +339,7 @@ CUresult cuDeviceTotalMem(size_t *bytes, CUdevice dev){
     return result;
 }
 
+// cuMemAlloc
 CUresult cuMemCreate(CUmemGenericAllocationHandle* handle, size_t size, const CUmemAllocationProp* prop, unsigned long long flags){
     CudaHook& hook = CudaHook::getInstance();
 
@@ -304,6 +381,7 @@ CUresult cuMemCreate(CUmemGenericAllocationHandle* handle, size_t size, const CU
     return result;
 }
 
+// cuMemRelease
 CUresult cuMemRelease(CUmemGenericAllocationHandle handle){
     CudaHook& hook = CudaHook::getInstance();
 

@@ -63,6 +63,53 @@ docker run -it --gpus all --rm -v /path/to/libvcuda-hook.so:/usr/lib64/libvcuda-
 - ☐ GPU Task Hot Snapshot
 - ...
 
+### Flow Diagram
+```mermaid
+graph TD
+  A[Application] -->|LD_PRELOAD| B[libvcuda-hook.so]
+  B --> C["global init (Logger)"]
+  B --> D["dlsym (exported)"]
+  D --> S["real_dlsym / underlying dlsym (dlvsym)"]
+  D -->|"symbol matches cu*"| E[CudaHook]
+  D -->|"symbol matches nvml*"| F[NvmlHook]
+  D -->|"other symbols"| G["Original libraries"]
+
+  subgraph Hooking
+    E --> H["tryHookSymbol / getHookedSymbol"]
+    H -->|"hookInfo.hookedFunc == NO_HOOK or none"| G
+    H -->|"hookInfo.hookedFunc != NO_HOOK"| I["replace symbol with hooked function"]
+    I --> J["hooked CUDA API wrappers"]
+  end
+
+  subgraph CUDA_API_Flow
+    J --> K[cuGetProcAddress]
+    K -->|"resolve original symbol"| S
+    K -->|"if hooked symbol"| I
+
+    J --> M["Memory APIs (cuMemAlloc / cuMemAllocPitch / cuMemAllocManaged / cuMemCreate / ...)"]
+    M --> N["Device Memory Manager"]
+    N --> O{"Device memory limit set?"}
+    O -->|"yes"| P["compare usage + requested -> if exceed -> return CUDA_ERROR_OUT_OF_MEMORY"]
+    O -->|"no or ok"| Q["call original API on Original CUDA library"]
+    Q --> R["updateMemoryUsage (MemAlloc / MemFree / MemRelease) in Device"]
+    R --> T["Client: update shared process metrics (shm)"]
+
+    J --> U["cuMemGetInfo / cuDeviceTotalMem"]
+    U -->|"if device limit configured"| V["report virtual total/free = limit * (1 + oversub_ratio)"]
+    U -->|"else"| Q
+  end
+
+  subgraph Client_Shared_Metrics
+    T --> W["shm_open / mmap create_or_attach_process_metric_data"]
+    W --> X["store per-process usage entries"]
+    X --> Y["get_device_process_metric_data() aggregate across processes"]
+  end
+
+  G --> Z["Underlying CUDA driver / GPU"]
+  Q --> Z
+
+```
+
 
 ## Why This Project?
 Based on several core motivations, I developed this project:

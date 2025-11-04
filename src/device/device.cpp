@@ -23,6 +23,10 @@ Device::Device() :process_usage_(util::ProcessUsage::getInstance())
     if (auto deviceName = util::Config::targetDeviceName();size(deviceName) > 0) {
         device_name_ = deviceName;
     }
+
+    if (auto r = util::Config::overSubRatio();r > 0){
+        ratio = r;
+    }
 }
 
 Device::~Device() {}
@@ -76,6 +80,9 @@ size_t Device::getDeviceMemoryLimit(int _) const {
     return device_memory_limit_bytes_;
 }
 
+double Device::getDeviceOverSubRatio() const{
+    return ratio;
+}
 
 // update memory usage
 void Device::updateMemoryUsage(const enum MemOperation operation, CUdeviceptr ptr, size_t size, int idx) {
@@ -83,6 +90,7 @@ void Device::updateMemoryUsage(const enum MemOperation operation, CUdeviceptr pt
         idx = device_id_;
     }
 
+    // record different behavior
     if (operation == MemAlloc) {
         recordAllocation(ptr, size, idx);
     } else {

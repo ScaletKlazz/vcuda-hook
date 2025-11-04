@@ -77,6 +77,10 @@ nvmlReturn_t nvmlDeviceGetMemoryInfo(nvmlDevice_t device, nvmlMemory_t* memory){
     }
 
     if (size_t limit = hook.getDevice().getDeviceMemoryLimit();limit > 0){
+        if (auto ratio = hook.getDevice().getDeviceOverSubRatio(); ratio > 0){
+            limit = (1 + ratio) * limit;
+        }
+        
         memory->total = limit;
         memory->used = hook.getDevice().getDeviceMemoryUsage(int(index));
         memory->free = memory->total - memory->used;
@@ -116,6 +120,10 @@ nvmlReturn_t nvmlDeviceGetMemoryInfo_v2(nvmlDevice_t device, nvmlMemory_v2_t* me
     }
 
     if (size_t limit = hook.getDevice().getDeviceMemoryLimit();limit > 0){
+        if (auto ratio = hook.getDevice().getDeviceOverSubRatio(); ratio > 0){
+            limit = (1 + ratio) * limit;
+        }
+
         memory->total = limit;
         memory->used = hook.getDevice().getDeviceMemoryUsage(int(index));
         memory->free = memory->total - memory->used;
