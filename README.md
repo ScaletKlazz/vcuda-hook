@@ -8,9 +8,6 @@
 
 a transparent-level library overhook lib-cuda and lib-nvidia-ml
 
-# HomePage
-[CFN-Cloud](https://www.cfncloud.com)(In development...)
-
 # Build Dependencies
 - [CMake](https://cmake.org) >= 3.19
 - [Docker](https://www.docker.com) > 20.10
@@ -58,7 +55,6 @@ docker run -it --gpus all --rm -v /path/to/libvcuda-hook.so:/usr/lib64/libvcuda-
 - ...
 
 ### More Features
-- ☐ Remote GPU Call Over Network
 - ☐ Oversub GPU Memory Control
 - ☐ GPU Task Hot Snapshot
 - ...
