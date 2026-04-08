@@ -51,12 +51,16 @@ file(GLOB CLIENT_SOURCES
         "src/client/*.cpp"
         "src/device/*.cpp"
 )
+file(GLOB BACKEND_SOURCES
+        "src/backend/*.cpp"
+        "src/remote/*.cpp"
+)
 file(GLOB UTIL_SOURCES
         "src/util/*.cpp"
 )
 
 # library
-add_library(vcuda-hook SHARED ${HOOK_SOURCES})
+add_library(vcuda-hook SHARED ${HOOK_SOURCES} ${BACKEND_SOURCES})
 add_library(client_lib ${CLIENT_SOURCES})
 add_library(util_lib ${UTIL_SOURCES})
 

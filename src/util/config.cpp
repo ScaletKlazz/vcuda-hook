@@ -1,6 +1,8 @@
 #include "util/config.hpp"
 
+#include <algorithm>
 #include <climits>
+#include <limits>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -12,11 +14,19 @@ namespace {
 
 constexpr const char* kMemoryLimitEnv = "VCUDA_MEMORY_LIMIT";
 constexpr const char* kDeviceNameEnv = "VCUDA_DEVICE_NAME";
+constexpr const char* kExecutionModeEnv = "VCUDA_EXECUTION_MODE";
+constexpr const char* kRemoteAddressEnv = "VCUDA_REMOTE_ADDR";
+constexpr const char* kRemoteTimeoutEnv = "VCUDA_REMOTE_TIMEOUT_MS";
+constexpr const char* kRemoteRdmaPreferredEnv = "VCUDA_REMOTE_RDMA_PREFERRED";
 constexpr const char* kConfigFilePath = "/etc/vcuda/config.yaml";
 
 struct FileConfig {
     std::optional<std::size_t> memory_limit;
     std::optional<std::string> device_name;
+    std::optional<std::string> execution_mode;
+    std::optional<std::string> remote_address;
+    std::optional<std::size_t> remote_timeout_ms;
+    std::optional<bool> remote_rdma_preferred;
 };
 
 std::string trim(const std::string& input) {
@@ -82,6 +92,20 @@ std::string toLowerCopy(std::string value) {
         return static_cast<char>(ch);
     });
     return value;
+}
+
+bool parseBool(const std::string& value, bool default_value = false) {
+    const auto normalized = toLowerCopy(trim(value));
+    if (normalized.empty()) {
+        return default_value;
+    }
+    if (normalized == "1" || normalized == "true" || normalized == "yes" || normalized == "on") {
+        return true;
+    }
+    if (normalized == "0" || normalized == "false" || normalized == "no" || normalized == "off") {
+        return false;
+    }
+    return default_value;
 }
 
 std::size_t multiplyWithOverflowCheck(std::size_t value, std::size_t multiplier) {
@@ -177,6 +201,45 @@ FileConfig loadConfigFile() {
             }
         };
 
+        const auto loadString = [](const YAML::Node& node, std::optional<std::string>& output) {
+            if (!node) {
+                return;
+            }
+            try {
+                if (node.IsScalar()) {
+                    output = node.as<std::string>();
+                }
+            } catch (const YAML::Exception&) {
+            }
+        };
+
+        const auto loadUnsigned = [&](const YAML::Node& node, std::optional<std::size_t>& output) {
+            if (!node) {
+                return;
+            }
+            try {
+                if (node.IsScalar()) {
+                    const auto parsed = parseUnsigned(node.as<std::string>());
+                    if (parsed > 0) {
+                        output = parsed;
+                    }
+                }
+            } catch (const YAML::Exception&) {
+            }
+        };
+
+        const auto loadBool = [&](const YAML::Node& node, std::optional<bool>& output) {
+            if (!node) {
+                return;
+            }
+            try {
+                if (node.IsScalar()) {
+                    output = parseBool(node.as<std::string>());
+                }
+            } catch (const YAML::Exception&) {
+            }
+        };
+
         loadMemory(root["memory_limit"]);
         if (!config.memory_limit) {
             loadMemory(root["memoryLimit"]);
@@ -190,7 +253,28 @@ FileConfig loadConfigFile() {
             loadDevice(root["target_device_name"]);
         }
 
-        if (config.memory_limit || config.device_name) {
+        loadString(root["execution_mode"], config.execution_mode);
+        if (!config.execution_mode) {
+            loadString(root["executionMode"], config.execution_mode);
+        }
+
+        loadString(root["remote_address"], config.remote_address);
+        if (!config.remote_address) {
+            loadString(root["remoteAddress"], config.remote_address);
+        }
+
+        loadUnsigned(root["remote_timeout_ms"], config.remote_timeout_ms);
+        if (!config.remote_timeout_ms) {
+            loadUnsigned(root["remoteTimeoutMs"], config.remote_timeout_ms);
+        }
+
+        loadBool(root["remote_rdma_preferred"], config.remote_rdma_preferred);
+        if (!config.remote_rdma_preferred) {
+            loadBool(root["remoteRdmaPreferred"], config.remote_rdma_preferred);
+        }
+
+        if (config.memory_limit || config.device_name || config.execution_mode || config.remote_address ||
+            config.remote_timeout_ms || config.remote_rdma_preferred) {
             return config;
         }
     } catch (const YAML::Exception&) {
@@ -230,6 +314,47 @@ std::string Config::targetDeviceName() {
     }
 
     return getEnv(kDeviceNameEnv);
+}
+
+Config::ExecutionMode Config::executionMode() {
+    std::string value;
+    if (const auto& fileCfg = cachedFileConfig(); fileCfg.execution_mode) {
+        value = fileCfg.execution_mode.value();
+    } else {
+        value = getEnv(kExecutionModeEnv);
+    }
+
+    const auto normalized = toLowerCopy(trim(value));
+    if (normalized == "remote") {
+        return ExecutionMode::Remote;
+    }
+    return ExecutionMode::Local;
+}
+
+std::string Config::remoteAddress() {
+    if (const auto& fileCfg = cachedFileConfig(); fileCfg.remote_address) {
+        return fileCfg.remote_address.value();
+    }
+    return getEnv(kRemoteAddressEnv);
+}
+
+std::size_t Config::remoteTimeoutMs() {
+    if (const auto& fileCfg = cachedFileConfig(); fileCfg.remote_timeout_ms) {
+        return fileCfg.remote_timeout_ms.value();
+    }
+    const auto raw = getEnv(kRemoteTimeoutEnv);
+    if (raw.empty()) {
+        return 3000;
+    }
+    const auto parsed = parseUnsigned(raw);
+    return parsed > 0 ? parsed : 3000;
+}
+
+bool Config::remoteRdmaPreferred() {
+    if (const auto& fileCfg = cachedFileConfig(); fileCfg.remote_rdma_preferred) {
+        return fileCfg.remote_rdma_preferred.value();
+    }
+    return parseBool(getEnv(kRemoteRdmaPreferredEnv), true);
 }
 
 std::string Config::getEnv(const char* name) {

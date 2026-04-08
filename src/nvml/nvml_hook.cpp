@@ -4,6 +4,9 @@
 
 #include "spdlog/spdlog.h"
 #include "util/logger.hpp"
+#include "util/config.hpp"
+#include "backend/local_backend.hpp"
+#include "backend/remote_backend.hpp"
 #include "nvml/nvml_hook.hpp"
 
 extern void* real_dlsym(void* handle, const char* symbol);
@@ -63,97 +66,25 @@ namespace {
 #pragma GCC visibility push(default)
 nvmlReturn_t nvmlDeviceGetMemoryInfo(nvmlDevice_t device, nvmlMemory_t* memory){
     auto& hook = NvmlHook::getInstance();
-
-    if (!ensureNvmlSymbol(hook.ori_nvmlDeviceGetIndex, SYMBOL_STRING(nvmlDeviceGetIndex))) {
-        spdlog::error("Unable to resolve original nvmlDeviceGetIndex");
-        return NVML_ERROR_UNINITIALIZED ;
+    if (util::Config::executionMode() == util::Config::ExecutionMode::Remote) {
+        return RemoteBackend::instance().nvmlDeviceGetMemoryInfo(hook, device, memory);
     }
-
-    uint index = 0;
-    auto result = hook.ori_nvmlDeviceGetIndex(device, &index);
-    if (result != NVML_SUCCESS) {
-        logNvmlError(hook, "nvmlDeviceGetIndex failed", result);
-        return result;
-    }
-
-    if (size_t limit = hook.getDevice().getDeviceMemoryLimit();limit > 0){
-        memory->total = limit;
-        memory->used = hook.getDevice().getDeviceMemoryUsage(int(index));
-        memory->free = memory->total - memory->used;
-        spdlog::trace("[nvmlDeviceGetMemoryInfo] Total: {}, Used: {}, Free: {}",
-                      memory->total,
-                      memory->used,
-                      memory->free);
-        return NVML_SUCCESS;
-    }
-
-    if (!ensureNvmlSymbol(hook.ori_nvmlDeviceGetMemoryInfo, SYMBOL_STRING(nvmlDeviceGetMemoryInfo))) {
-        spdlog::error("Unable to resolve original nvmlDeviceGetMemoryInfo");
-        return NVML_ERROR_UNINITIALIZED ;
-    }
-
-    result = hook.ori_nvmlDeviceGetMemoryInfo(device, memory);
-    if (result != NVML_SUCCESS) {
-        logNvmlError(hook, "nvmlDeviceGetMemoryInfo failed", result);
-        return result;
-    }
-
-    return result;
+    return LocalBackend::instance().nvmlDeviceGetMemoryInfo(hook, device, memory);
 }
 nvmlReturn_t nvmlDeviceGetMemoryInfo_v2(nvmlDevice_t device, nvmlMemory_v2_t* memory){
     auto& hook = NvmlHook::getInstance();
-
-    if (!ensureNvmlSymbol(hook.ori_nvmlDeviceGetIndex, SYMBOL_STRING(nvmlDeviceGetIndex))) {
-        spdlog::error("Unable to resolve original nvmlDeviceGetIndex");
-        return NVML_ERROR_UNINITIALIZED ;
+    if (util::Config::executionMode() == util::Config::ExecutionMode::Remote) {
+        return RemoteBackend::instance().nvmlDeviceGetMemoryInfo_v2(hook, device, memory);
     }
-
-    uint index = 0;
-    auto result = hook.ori_nvmlDeviceGetIndex(device, &index);
-    if (result != NVML_SUCCESS) {
-        logNvmlError(hook, "nvmlDeviceGetIndex failed", result);
-        return result;
-    }
-
-    if (size_t limit = hook.getDevice().getDeviceMemoryLimit();limit > 0){
-        memory->total = limit;
-        memory->used = hook.getDevice().getDeviceMemoryUsage(int(index));
-        memory->free = memory->total - memory->used;
-        spdlog::trace("[nvmlDeviceGetMemoryInfo_v2] Total: {}, Used: {}, Free: {}",
-                      memory->total,
-                      memory->used,
-                      memory->free);
-        return NVML_SUCCESS;
-    }
-
-    if (!ensureNvmlSymbol(hook.ori_nvmlDeviceGetMemoryInfo_v2, SYMBOL_STRING(nvmlDeviceGetMemoryInfo_v2))) {
-        spdlog::error("Unable to resolve original nvmlDeviceGetMemoryInfo_v2");
-        return NVML_ERROR_UNINITIALIZED ;
-    }
-
-    result = hook.ori_nvmlDeviceGetMemoryInfo_v2(device, memory);
-    if (result != NVML_SUCCESS) {
-        logNvmlError(hook, "nvmlDeviceGetMemoryInfo_v2 failed", result);
-        return result;
-    }
-
-    return result;
+    return LocalBackend::instance().nvmlDeviceGetMemoryInfo_v2(hook, device, memory);
 }
 
 nvmlReturn_t nvmlDeviceGetName(nvmlDevice_t device, char* name, unsigned int length){
     auto& hook = NvmlHook::getInstance();
-
-    if (hook.getDevice().getDeviceName() != ""){
-        strncpy(name, hook.getDevice().getDeviceName().c_str(), length);
-        return NVML_SUCCESS;
+    if (util::Config::executionMode() == util::Config::ExecutionMode::Remote) {
+        return RemoteBackend::instance().nvmlDeviceGetName(hook, device, name, length);
     }
-
-    if (!ensureNvmlSymbol(hook.ori_nvmlDeviceGetName, SYMBOL_STRING(nvmlDeviceGetName))) {
-        spdlog::error("Unable to resolve original nvmlDeviceGetName");
-        return NVML_ERROR_UNINITIALIZED ;
-    }
-
-    return hook.ori_nvmlDeviceGetName(device, name, length);
+    return LocalBackend::instance().nvmlDeviceGetName(hook, device, name, length);
 }
 
 

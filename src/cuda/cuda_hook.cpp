@@ -4,7 +4,11 @@
 
 #include "spdlog/spdlog.h"
 #include "util/logger.hpp"
+#include "util/config.hpp"
+#include "backend/local_backend.hpp"
+#include "backend/remote_backend.hpp"
 #include "cuda/cuda_hook.hpp"
+#include "remote/remote_executor.hpp"
 
 extern void* real_dlsym(void*, const char*);
 
@@ -100,6 +104,14 @@ CUresult cuGetProcAddress(const char* symbol, void** pfn, int cudaVersion, cuuin
 
 CUresult cuInit(unsigned int flags) {
     CudaHook& hook = CudaHook::getInstance();
+    if (util::Config::executionMode() == util::Config::ExecutionMode::Remote) {
+        std::string error;
+        if (!remote::RemoteExecutor::instance().ensureConnected(&error)) {
+            spdlog::error("remote cuInit failed: {}", error);
+            return CUDA_ERROR_NOT_INITIALIZED;
+        }
+        return CUDA_SUCCESS;
+    }
 
     if (!ensureCudaSymbol(hook.ori_cuInit, SYMBOL_STRING(cuInit))) {
         spdlog::error("Unable to resolve original cuInit");
@@ -116,32 +128,28 @@ CUresult cuInit(unsigned int flags) {
 
 CUresult cuMemAlloc(CUdeviceptr* dptr, size_t byteSize) {
     CudaHook& hook = CudaHook::getInstance();
-
-    if (!ensureCudaSymbol(hook.ori_cuMemAlloc_v2, SYMBOL_STRING(cuMemAlloc))) {
-        spdlog::error("Unable to resolve original cuMemAlloc");
-        return CUDA_ERROR_NOT_INITIALIZED;
+    if (util::Config::executionMode() == util::Config::ExecutionMode::Remote) {
+        return RemoteBackend::instance().cuMemAlloc(hook, dptr, byteSize);
     }
-
-    if(auto limit = hook.getDevice().getDeviceMemoryLimit();limit > 0){
-        if(hook.getDevice().getDeviceMemoryUsage() + byteSize > limit){
-            spdlog::error("Out of memory, trying to allocate {} bytes, current usage {}", byteSize, hook.getDevice().getDeviceMemoryUsage());
-            return CUDA_ERROR_OUT_OF_MEMORY;
-        }
-    }
-
-    const CUresult result = hook.ori_cuMemAlloc_v2(dptr, byteSize);
-    if (result != CUDA_SUCCESS) {
-        logCudaError(hook, "cuMemAlloc failed", result);
-        return result;
-    }
-
-    hook.getDevice().updateMemoryUsage(MemAlloc,*dptr,byteSize);
-
-    return result;
+    return LocalBackend::instance().cuMemAlloc(hook, dptr, byteSize);
 }
 
 CUresult cuDeviceGet(CUdevice* device, int ordinal) {
     CudaHook& hook = CudaHook::getInstance();
+    if (util::Config::executionMode() == util::Config::ExecutionMode::Remote) {
+        std::string error;
+        if (!remote::RemoteExecutor::instance().ensureConnected(&error)) {
+            spdlog::error("remote cuDeviceGet failed: {}", error);
+            return CUDA_ERROR_NOT_INITIALIZED;
+        }
+        const auto handshake = remote::RemoteExecutor::instance().handshakeInfo();
+        if (!handshake || ordinal < 0 || ordinal >= handshake->device_count) {
+            return CUDA_ERROR_INVALID_DEVICE;
+        }
+        *device = static_cast<CUdevice>(ordinal);
+        hook.getDevice().setDeviceId(ordinal);
+        return CUDA_SUCCESS;
+    }
 
     if (!ensureCudaSymbol(hook.ori_cuDeviceGet, SYMBOL_STRING(cuDeviceGet))) {
         spdlog::error("Unable to resolve original cuDeviceGet");
@@ -153,114 +161,41 @@ CUresult cuDeviceGet(CUdevice* device, int ordinal) {
 
 CUresult cuMemFree(CUdeviceptr dptr) {
     CudaHook& hook = CudaHook::getInstance();
-
-    if (!ensureCudaSymbol(hook.ori_cuMemFree_v2, SYMBOL_STRING(cuMemFree))) {
-        spdlog::error("Unable to resolve original cuMemFree");
-        return CUDA_ERROR_NOT_INITIALIZED;
+    if (util::Config::executionMode() == util::Config::ExecutionMode::Remote) {
+        return RemoteBackend::instance().cuMemFree(hook, dptr);
     }
-
-    const CUresult result = hook.ori_cuMemFree_v2(dptr);
-    if (result != CUDA_SUCCESS) {
-        logCudaError(hook, "cuMemFree failed", result);
-    }
-
-    hook.getDevice().updateMemoryUsage(MemFree, dptr);
-
-    return result;
+    return LocalBackend::instance().cuMemFree(hook, dptr);
 }
 
 CUresult cuCtxGetDevice(CUdevice* device) {
     CudaHook& hook = CudaHook::getInstance();
-
-    if (!ensureCudaSymbol(hook.ori_cuCtxGetDevice, SYMBOL_STRING(cuCtxGetDevice))) {
-        spdlog::error("Unable to resolve original cuCtxGetDevice");
-        return CUDA_ERROR_NOT_INITIALIZED;
+    if (util::Config::executionMode() == util::Config::ExecutionMode::Remote) {
+        return RemoteBackend::instance().cuCtxGetDevice(hook, device);
     }
-
-    CUresult result = hook.ori_cuCtxGetDevice(device);
-    if (result != CUDA_SUCCESS) {
-        logCudaError(hook, "cuCtxGetDevice failed", result);
-        return result;
-    }
-
-    hook.getDevice().setDeviceId(int(*device));
-
-    return result;
+    return LocalBackend::instance().cuCtxGetDevice(hook, device);
 }
 
 CUresult cuCtxSetCurrent(CUcontext ctx) {
     CudaHook& hook = CudaHook::getInstance();
-
-    if (!ensureCudaSymbol(hook.ori_cuCtxSetCurrent, SYMBOL_STRING(cuCtxSetCurrent))) {
-        spdlog::error("Unable to resolve original cuCtxSetCurrent");
-        return CUDA_ERROR_NOT_INITIALIZED;
+    if (util::Config::executionMode() == util::Config::ExecutionMode::Remote) {
+        return RemoteBackend::instance().cuCtxSetCurrent(hook, ctx);
     }
-
-    if (!ensureCudaSymbol(hook.ori_cuCtxGetDevice, SYMBOL_STRING(cuCtxGetDevice))) {
-        spdlog::error("Unable to resolve original cuCtxGetDevice");
-        return CUDA_ERROR_NOT_INITIALIZED;
-    }
-
-    CUresult result = hook.ori_cuCtxSetCurrent(ctx);
-    if (result != CUDA_SUCCESS) {
-        logCudaError(hook, "cuCtxSetCurrent failed", result);
-        return result;
-    }
-
-    CUdevice device;
-    result = hook.ori_cuCtxGetDevice(&device);
-    if (result != CUDA_SUCCESS) {
-        logCudaError(hook, "cuCtxGetDevice failed", result);
-        return result;
-    }
-
-    hook.getDevice().setDeviceId(int(device));
-
-    return result;
+    return LocalBackend::instance().cuCtxSetCurrent(hook, ctx);
 }
 CUresult cuMemGetInfo(size_t* free, size_t* total) {
     CudaHook& hook = CudaHook::getInstance();
-
-    if (!ensureCudaSymbol(hook.ori_cuMemGetInfo_v2, SYMBOL_STRING(cuMemGetInfo))) {
-        spdlog::error("Unable to resolve original cuMemGetInfo");
-        return CUDA_ERROR_NOT_INITIALIZED;
+    if (util::Config::executionMode() == util::Config::ExecutionMode::Remote) {
+        return RemoteBackend::instance().cuMemGetInfo(hook, free, total);
     }
-
-    if (auto limit = hook.getDevice().getDeviceMemoryLimit(); limit > 0){
-        *total = limit;
-        *free = limit - hook.getDevice().getDeviceMemoryUsage();
-        return CUDA_SUCCESS;
-    }
-
-    const CUresult result = hook.ori_cuMemGetInfo_v2(free, total);
-    if (result != CUDA_SUCCESS) {
-        logCudaError(hook, "cuMemGetInfo failed", result);
-        return result;
-    }
-
-    return result;
+    return LocalBackend::instance().cuMemGetInfo(hook, free, total);
 }
 
 CUresult cuDeviceTotalMem(size_t *bytes, CUdevice dev){
     CudaHook& hook = CudaHook::getInstance();
-
-    if (!ensureCudaSymbol(hook.ori_cuDeviceTotalMem_v2, SYMBOL_STRING(cuDeviceTotalMem))) {
-        spdlog::error("Unable to resolve original cuDeviceTotalMem");
-        return CUDA_ERROR_NOT_INITIALIZED;
+    if (util::Config::executionMode() == util::Config::ExecutionMode::Remote) {
+        return RemoteBackend::instance().cuDeviceTotalMem(hook, bytes, dev);
     }
-
-    if (auto limit = hook.getDevice().getDeviceMemoryLimit(int(dev)); limit > 0){
-        *bytes = limit;
-        return CUDA_SUCCESS;
-    }
-
-    const CUresult result = hook.ori_cuDeviceTotalMem_v2(bytes, dev);
-    if (result != CUDA_SUCCESS) {
-        logCudaError(hook, "cuDeviceTotalMem failed", result);
-        return result;
-    }
-
-    return result;
+    return LocalBackend::instance().cuDeviceTotalMem(hook, bytes, dev);
 }
 
 CUresult cuMemCreate(CUmemGenericAllocationHandle* handle, size_t size, const CUmemAllocationProp* prop, unsigned long long flags){
